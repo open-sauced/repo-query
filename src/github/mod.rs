@@ -34,7 +34,7 @@ pub struct RepositoryEmbeddings {
     pub file_embeddings: Vec<FileEmbeddings>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct RepositoryFilePaths {
     pub repo_id: String,
     pub file_paths: Vec<String>

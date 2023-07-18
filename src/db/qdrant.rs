@@ -41,7 +41,7 @@ impl RepositoryEmbeddingsDB for QdrantDB {
             .into_par_iter()
             .map(|file| {
                 let FileEmbeddings { path, embeddings } = file;
-                let payload: Payload = HashMap::from([("path", Value::from(path))]).into();
+                let payload: Payload = HashMap::from([("path", path.into())]).into();
 
                 PointStruct::new(Uuid::new_v4().to_string(), embeddings, payload)
             })
@@ -71,7 +71,7 @@ impl RepositoryEmbeddingsDB for QdrantDB {
         let paths: Vec<String> = search_response
             .result
             .into_iter()
-            .map(|point| point.payload["path"].to_string())
+            .map(|point| point.payload["path"].to_string().replace('\"', ""))
             .collect();
         Ok(RepositoryFilePaths {
             repo_id: repository.to_string(),
@@ -96,7 +96,7 @@ impl RepositoryEmbeddingsDB for QdrantDB {
         let file_paths: Vec<String> = scroll_reponse
             .result
             .par_iter()
-            .map(|point| point.payload["path"].to_string())
+            .map(|point| point.payload["path"].to_string().replace('\"', ""))
             .collect();
         Ok(RepositoryFilePaths {
             repo_id: repository.to_string(),

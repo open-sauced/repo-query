@@ -1,6 +1,7 @@
 use crate::{
     db::RepositoryEmbeddingsDB,
-    embeddings::{cosine_similarity, Embeddings, EmbeddingsModel, RelevantChunk},
+    utils::conversation::RelevantChunk,
+    embeddings::{cosine_similarity, Embeddings, EmbeddingsModel},
     github::{fetch_file_content, Repository, RepositoryFilePaths},
     prelude::*,
 };
@@ -20,7 +21,7 @@ pub async fn search_codebase<M: EmbeddingsModel, D: RepositoryEmbeddingsDB>(
         .file_paths;
     let mut relevant_chunks: Vec<RelevantChunk> = Vec::new();
     for path in relevant_files {
-        let mut chunks = search_file(&path, query, &repository, model, 2).await?;
+        let chunks = search_file(&path, query, &repository, model, 2).await?;
         relevant_chunks.extend(chunks);
     }
 
@@ -35,9 +36,13 @@ pub async fn search_file<M: EmbeddingsModel>(
     limit: usize,
 ) -> Result<Vec<RelevantChunk>> {
     let file_content = fetch_file_content(&repository, path).await?;
-    let splitter = text_splitter::TextSplitter::default();
-    let chunks: Vec<&str> = splitter.chunks(&file_content, 300).collect();
-    let chunks_embeddings: Vec<Embeddings> = chunks
+    let splitter = text_splitter::TextSplitter::default().with_trim_chunks(true);
+    let chunks: Vec<&str> = splitter.chunks(&file_content, 500..700).collect();
+    let cleaned_chunks: Vec<String> = chunks
+        .iter()
+        .map(|s| s.split_whitespace().collect::<Vec<&str>>().join(" "))
+        .collect();
+    let chunks_embeddings: Vec<Embeddings> = cleaned_chunks
         .iter()
         .map(|chunk| model.embed(chunk).unwrap())
         .collect();
@@ -59,15 +64,15 @@ pub async fn search_file<M: EmbeddingsModel>(
         .iter()
         .map(|index| RelevantChunk {
             path: path.to_string(),
-            content: chunks[*index].to_string(),
+            content: cleaned_chunks[*index].to_string(),
         })
         .collect();
     Ok(relevant_chunks)
 }
 
-pub fn search_path(path: &str, list: RepositoryFilePaths) -> Vec<String> {
+pub fn search_path(path: &str, list: &RepositoryFilePaths, limit: usize) -> Vec<String> {
     let file_paths: Vec<&str> = list.file_paths.iter().map(String::as_ref).collect();
-    let response: Vec<(&str, f32)> = rust_fuzzy_search::fuzzy_search_best_n(path, &file_paths, 3);
+    let response: Vec<(&str, f32)> = rust_fuzzy_search::fuzzy_search_best_n(path, &file_paths, limit);
     let file_paths = response
         .iter()
         .map(|(path, _)| path.to_string())

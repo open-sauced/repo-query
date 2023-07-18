@@ -38,6 +38,22 @@ impl ToString for Query {
     }
 }
 
+#[derive(Debug)]
+pub struct RelevantChunk {
+    pub path: String,
+    pub content: String,
+}
+
+impl ToString for RelevantChunk {
+    fn to_string(&self) -> String {
+        format!(
+            "##Relevant file chunk##\nFile path:{}\nChunk content: {}",
+            self.path,
+            self.content.trim()
+        )
+    }
+}
+
 pub struct Conversation {
     query: Query,
     client: Client,
