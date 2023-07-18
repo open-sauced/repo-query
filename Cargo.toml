@@ -21,3 +21,5 @@ tokenizers = "0.13.3"
 openai-api-rs = {git = "https://github.com/Anush008/openai-api-rs.git", branch = "main"}
 uuid = {version = "1.4.0", features = ["v4", "fast-rng"] }
 zip = "0.6.6"
+rust-fuzzy-search = "0.1.1"
+text-splitter = "0.4.2"

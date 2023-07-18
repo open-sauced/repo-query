@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use super::RepositoryEmbeddingsDB;
 use crate::{
     embeddings::Embeddings,
-    github::{
-        fetch_file_content, File, FileEmbeddings, Repository, RepositoryEmbeddings,
-        RepositoryFilePaths,
-    },
+    github::{FileEmbeddings, Repository, RepositoryEmbeddings, RepositoryFilePaths},
     prelude::*,
 };
 use anyhow::Ok;
@@ -60,7 +57,7 @@ impl RepositoryEmbeddingsDB for QdrantDB {
         repository: Repository,
         query_embeddings: Embeddings,
         limit: u64,
-    ) -> Result<Vec<File>> {
+    ) -> Result<RepositoryFilePaths> {
         let search_response = self
             .client
             .search_points(&SearchPoints {
@@ -71,26 +68,15 @@ impl RepositoryEmbeddingsDB for QdrantDB {
                 ..Default::default()
             })
             .await?;
-        let futures: Vec<_> = search_response
+        let paths: Vec<String> = search_response
             .result
             .into_iter()
-            .map(|point| {
-                let path = point.payload["path"].to_string();
-                async {
-                    let content = fetch_file_content(repository.clone(), &path)
-                        .await
-                        .unwrap_or_default();
-                    let length = content.len();
-                    File {
-                        path,
-                        content,
-                        length,
-                    }
-                }
-            })
+            .map(|point| point.payload["path"].to_string())
             .collect();
-        let files: Vec<File> = futures::future::join_all(futures).await;
-        Ok(files)
+        Ok(RepositoryFilePaths {
+            repo_id: repository.to_string(),
+            file_paths: paths,
+        })
     }
 
     async fn get_file_paths(&self, repository: Repository) -> Result<RepositoryFilePaths> {

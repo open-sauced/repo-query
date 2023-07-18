@@ -15,7 +15,7 @@ pub trait RepositoryEmbeddingsDB {
         repository: Repository,
         query_embeddings: Embeddings,
         limit: u64,
-    ) -> Result<Vec<File>>;
+    ) -> Result<RepositoryFilePaths>;
 
     async fn get_file_paths(
         &self,

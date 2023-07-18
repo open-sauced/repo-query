@@ -1,4 +1,3 @@
-use crate::embeddings::EmbeddingsModel;
 use crate::utils::conversation::Query;
 use crate::{db::RepositoryEmbeddingsDB, github::Repository};
 use actix_web::{
