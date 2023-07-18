@@ -112,7 +112,7 @@ async fn fetch_repo_files(repository: Repository) -> Result<Vec<File>> {
     Ok(files)
 }
 
-pub async fn fetch_file_content(repository: Repository, path: &str) -> Result<String> {
+pub async fn fetch_file_content(repository: &Repository, path: &str) -> Result<String> {
     let Repository {
         owner: repo_owner,
         name: repo_name,

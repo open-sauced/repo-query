@@ -35,5 +35,5 @@ async fn query(
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> impl Responder {
-    todo!()
+    HttpResponse::new(StatusCode::SERVICE_UNAVAILABLE)
 }

@@ -1,5 +1,5 @@
 use crate::embeddings::Embeddings;
-use crate::github::{File, Repository, RepositoryEmbeddings, RepositoryFilePaths};
+use crate::github::{Repository, RepositoryEmbeddings, RepositoryFilePaths};
 use crate::prelude::*;
 mod qdrant;
 use async_trait::async_trait;
@@ -12,7 +12,7 @@ pub trait RepositoryEmbeddingsDB {
 
     async fn get_relevant_files(
         &self,
-        repository: Repository,
+        repository: &Repository,
         query_embeddings: Embeddings,
         limit: u64,
     ) -> Result<RepositoryFilePaths>;

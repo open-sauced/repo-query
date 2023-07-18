@@ -54,7 +54,7 @@ impl RepositoryEmbeddingsDB for QdrantDB {
 
     async fn get_relevant_files(
         &self,
-        repository: Repository,
+        repository: &Repository,
         query_embeddings: Embeddings,
         limit: u64,
     ) -> Result<RepositoryFilePaths> {
