@@ -100,11 +100,11 @@ pub fn functions() -> Vec<Function> {
 }
 
 pub fn system_message() -> String {
-    let mut s = String::new();
-    s.push_str(
+    String::from(
         r#"Your job is to choose a function that will help you answer a query about a repository
 Follow these rules at all times:
-- When you have enough information to answer the  user's query respond with functions.none
+- When you have enough information to answer the user's query respond with functions.none
+- If there have been upto 5 function calls, respond with functions.none
 - In most cases respond with functions.search_codebase or functions.search_path functions before responding with functions.none
 - Do not assume the structure of the codebase, or the existence of files or folders
 - Do NOT respond with a function that you've used before with the same arguments
@@ -112,7 +112,6 @@ Follow these rules at all times:
 - If after making a path search the query can be answered by the existance of the paths, use the functions.none function
 - Only refer to paths that are returned by the functions.search_path function when calling functions.search_file
 - If after attempting to gather information you are still unsure how to answer the query, respond with the functions.none function
-- Always respond with a function call. Do NOT answer the question directly"#
-);
-    s
+- Always respond with a function call. Do NOT answer the question directly"#,
+    )
 }

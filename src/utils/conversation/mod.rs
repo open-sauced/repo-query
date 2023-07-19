@@ -50,21 +50,24 @@ impl ToString for Query {
 #[derive(Debug)]
 pub struct RelevantChunk {
     pub path: String,
-    pub query: String,
     pub content: String,
 }
 
 impl ToString for RelevantChunk {
     fn to_string(&self) -> String {
         format!(
-            "##Relevant file chunk##\nPath argument:{}\nQuery argument:{}\nRelevant content: {}",
+            "##Relevant file chunk##\nPath argument:{}\nRelevant content: {}",
             self.path,
-            self.query,
             self.content.trim()
         )
     }
 }
 
+#[derive(Debug, Clone)]
+struct ParsedFunctionCall {
+    name: Function,
+    args: serde_json::Value,
+}
 pub struct Conversation<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> {
     query: Query,
     client: Client,
@@ -112,7 +115,14 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
 
             if let FinishReason::function_call = response.choices[0].finish_reason {
                 if let Some(function_call) = response.choices[0].message.function_call.clone() {
-                    let parsed_function_call = parse_function_call(function_call)?;
+                    let parsed_function_call = parse_function_call(&function_call)?;
+                    let function_call_message = ChatCompletionMessage {
+                        name: None,
+                        function_call: Some(function_call),
+                        role: MessageRole::assistant,
+                        content: Some(String::new()),
+                    };
+                    self.append_message(function_call_message);
                     dbg!(parsed_function_call.clone());
                     match parsed_function_call.name {
                         Function::SearchCodebase => {
@@ -179,18 +189,16 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
     }
 }
 
-fn parse_function_call(mut func: FunctionCall) -> Result<ParsedFunctionCall> {
-    let function_name = Function::from_str(&func.name.get_or_insert("none".into())).unwrap();
-    let function_args = func.arguments.get_or_insert("{}".to_string());
-    let function_args = serde_json::from_str::<serde_json::Value>(function_args)?;
+fn parse_function_call(func: &FunctionCall) -> Result<ParsedFunctionCall> {
+    let func = func.clone();
+    let function_name = Function::from_str(&func.name.unwrap_or("none".into())).unwrap();
+    let function_args = func.arguments.unwrap_or("{}".to_string());
+    let function_args = serde_json::from_str::<serde_json::Value>(&function_args)?;
     Ok(ParsedFunctionCall {
         name: function_name,
         args: function_args,
     })
 }
 
-#[derive(Debug, Clone)]
-struct ParsedFunctionCall {
-    name: Function,
-    args: serde_json::Value,
-}
+
+

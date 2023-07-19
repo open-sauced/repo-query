@@ -101,7 +101,6 @@ pub async fn search_file<M: EmbeddingsModel>(
         .iter()
         .map(|index| RelevantChunk {
             path: path.to_string(),
-            query: query.to_string(),
             content: cleaned_chunks[*index].to_string(),
         })
         .collect();
