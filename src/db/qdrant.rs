@@ -56,7 +56,7 @@ impl RepositoryEmbeddingsDB for QdrantDB {
         &self,
         repository: &Repository,
         query_embeddings: Embeddings,
-        limit: u64,
+        limit: usize,
     ) -> Result<RepositoryFilePaths> {
         let search_response = self
             .client
@@ -64,7 +64,7 @@ impl RepositoryEmbeddingsDB for QdrantDB {
                 collection_name: repository.to_string(),
                 vector: query_embeddings,
                 with_payload: Some(true.into()),
-                limit,
+                limit: limit as u64,
                 ..Default::default()
             })
             .await?;
@@ -79,7 +79,7 @@ impl RepositoryEmbeddingsDB for QdrantDB {
         })
     }
 
-    async fn get_file_paths(&self, repository: Repository) -> Result<RepositoryFilePaths> {
+    async fn get_file_paths(&self, repository: &Repository) -> Result<RepositoryFilePaths> {
         let scroll_reponse = self
             .client
             .scroll(&ScrollPoints {

@@ -2,19 +2,20 @@ use std::str::FromStr;
 
 use crate::{
     db::RepositoryEmbeddingsDB,
-    utils::conversation::RelevantChunk,
     embeddings::{cosine_similarity, Embeddings, EmbeddingsModel},
     github::{fetch_file_content, Repository, RepositoryFilePaths},
     prelude::*,
+    utils::conversation::RelevantChunk,
 };
 use ndarray::ArrayView1;
+use openai_api_rs::v1::chat_completion::{ChatCompletionMessage, MessageRole};
 use rayon::prelude::*;
 
 pub enum Function {
     SearchCodebase,
     SearchFile,
     SearchPath,
-    None
+    None,
 }
 
 impl FromStr for Function {
@@ -32,18 +33,20 @@ impl FromStr for Function {
 
 pub async fn search_codebase<M: EmbeddingsModel, D: RepositoryEmbeddingsDB>(
     query: &str,
-    repository: Repository,
+    repository: &Repository,
     model: &M,
     db: &D,
+    files_limit: usize,
+    chunks_limit: usize
 ) -> Result<Vec<RelevantChunk>> {
     let query_embeddings = model.embed(query)?;
     let relevant_files = db
-        .get_relevant_files(&repository, query_embeddings, 2)
+        .get_relevant_files(&repository, query_embeddings, files_limit)
         .await?
         .file_paths;
     let mut relevant_chunks: Vec<RelevantChunk> = Vec::new();
     for path in relevant_files {
-        let chunks = search_file(&path, query, &repository, model, 2).await?;
+        let chunks = search_file(&path, query, &repository, model, chunks_limit).await?;
         relevant_chunks.extend(chunks);
     }
 
@@ -55,7 +58,7 @@ pub async fn search_file<M: EmbeddingsModel>(
     query: &str,
     repository: &Repository,
     model: &M,
-    limit: usize,
+    chunks_limit: usize,
 ) -> Result<Vec<RelevantChunk>> {
     let file_content = fetch_file_content(&repository, path).await?;
     let splitter = text_splitter::TextSplitter::default().with_trim_chunks(true);
@@ -80,7 +83,7 @@ pub async fn search_file<M: EmbeddingsModel>(
         .collect();
     let mut indexed_vec: Vec<(usize, &f32)> = similarities.par_iter().enumerate().collect();
     indexed_vec.par_sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
-    let indices: Vec<usize> = indexed_vec.iter().map(|x| x.0).take(limit).collect();
+    let indices: Vec<usize> = indexed_vec.iter().map(|x| x.0).take(chunks_limit).collect();
 
     let relevant_chunks: Vec<RelevantChunk> = indices
         .iter()
@@ -92,12 +95,42 @@ pub async fn search_file<M: EmbeddingsModel>(
     Ok(relevant_chunks)
 }
 
-pub fn search_path(path: &str, list: &RepositoryFilePaths, limit: usize) -> Vec<String> {
+pub async fn search_path<D: RepositoryEmbeddingsDB>(path: &str, repository: &Repository, db: &D, limit: usize) -> Result<Vec<String>> {
+    let list = db.get_file_paths(repository).await?;
     let file_paths: Vec<&str> = list.file_paths.iter().map(String::as_ref).collect();
-    let response: Vec<(&str, f32)> = rust_fuzzy_search::fuzzy_search_best_n(path, &file_paths, limit);
+    let response: Vec<(&str, f32)> =
+        rust_fuzzy_search::fuzzy_search_best_n(path, &file_paths, limit);
     let file_paths = response
         .iter()
         .map(|(path, _)| path.to_string())
         .collect::<Vec<String>>();
-    file_paths
+    Ok(file_paths)
+}
+
+pub fn paths_to_completion_message(paths: Vec<String>) -> ChatCompletionMessage {
+    let paths = paths.join(", ");
+
+    ChatCompletionMessage {
+        name: Some("search_path".to_string()),
+        role: MessageRole::function,
+        content: Some(paths),
+        function_call: None,
+    }
+}
+
+pub fn relevant_chunks_to_completion_message(
+    relevant_chunks: Vec<RelevantChunk>,
+) -> ChatCompletionMessage {
+    let chunks = relevant_chunks
+        .iter()
+        .map(|chunk| chunk.to_string())
+        .collect::<Vec<String>>()
+        .join("\n\n");
+
+    ChatCompletionMessage {
+        name: Some("search_codebase".to_string()),
+        role: MessageRole::function,
+        content: Some(chunks),
+        function_call: None,
+    }
 }

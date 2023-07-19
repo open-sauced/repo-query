@@ -4,6 +4,7 @@ use crate::db::RepositoryEmbeddingsDB;
 use crate::prelude::*;
 use crate::{embeddings::EmbeddingsModel, github::Repository};
 use openai_api_rs::v1::chat_completion::{FinishReason, FunctionCall};
+use openai_api_rs::v1::completion;
 use openai_api_rs::v1::{
     api::Client,
     chat_completion::{
@@ -18,7 +19,10 @@ use std::sync::Arc;
 
 use prompts::{generate_completion_request, system_message};
 
-use super::functions::Function;
+use super::functions::{
+    paths_to_completion_message, relevant_chunks_to_completion_message, search_codebase,
+    search_file, search_path, Function,
+};
 
 #[derive(Deserialize)]
 pub struct Query {
@@ -100,21 +104,65 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
         Ok(self.client.chat_completion(request).await?)
     }
 
-    pub async fn generate_answer(&self) {
+    pub async fn generate_answer(&mut self) -> Result<()> {
         let request = generate_completion_request(self.messages.clone());
         let response = self.send_request(request).await.unwrap();
-        match response.choices[0].finish_reason {
-            FinishReason::function_call => {
-                match response.choices[0].message.function_call.clone() {
-                    Some(function_call) => {
-                        let parsed_function_call = parse_function_call(function_call).unwrap();
+
+        if let FinishReason::function_call = response.choices[0].finish_reason {
+            if let Some(function_call) = response.choices[0].message.function_call.clone() {
+                let parsed_function_call = parse_function_call(function_call)?;
+                match parsed_function_call.name {
+                    Function::SearchCodebase => {
+                        let query: &str = parsed_function_call.args["query"]
+                            .as_str()
+                            .unwrap_or_default();
+                        let relevant_chunks = search_codebase(
+                            query,
+                            &self.query.repository,
+                            self.model.as_ref(),
+                            self.db.as_ref(),
+                            3,
+                            2,
+                        )
+                        .await?;
+                        let completion_message =
+                            relevant_chunks_to_completion_message(relevant_chunks);
+                        self.append_message(completion_message);
                     }
-                    None => {}
+                    Function::SearchFile => {
+                        let query: &str = parsed_function_call.args["query"]
+                            .as_str()
+                            .unwrap_or_default();
+                        let path: &str = parsed_function_call.args["path"]
+                            .as_str()
+                            .unwrap_or_default();
+                        let relevant_chunks = search_file(
+                            path,
+                            query,
+                            &self.query.repository,
+                            self.model.as_ref(),
+                            2,
+                        )
+                        .await?;
+                        let completion_message =
+                            relevant_chunks_to_completion_message(relevant_chunks);
+                        self.append_message(completion_message);
+                    }
+                    Function::SearchPath => {
+                        let path: &str = parsed_function_call.args["path"]
+                            .as_str()
+                            .unwrap_or_default();
+                        let fuzzy_matched_paths =
+                            search_path(path, &self.query.repository, self.db.as_ref(), 3).await?;
+                        let completion_message = paths_to_completion_message(fuzzy_matched_paths);
+                        self.append_message(completion_message);
+                    }
+                    Function::None => {}
                 }
-            }
-            _ => {}
+            };
         }
-        {}
+
+        Ok(())
     }
 }
 

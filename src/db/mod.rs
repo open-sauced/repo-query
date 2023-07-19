@@ -14,11 +14,11 @@ pub trait RepositoryEmbeddingsDB {
         &self,
         repository: &Repository,
         query_embeddings: Embeddings,
-        limit: u64,
+        limit: usize,
     ) -> Result<RepositoryFilePaths>;
 
     async fn get_file_paths(
         &self,
-        repository: Repository
+        repository: &Repository
     ) -> Result<RepositoryFilePaths>;
 }
