@@ -1,8 +1,8 @@
 use crate::prelude::*;
-use ndarray::Axis;
+use ndarray::{Array, Axis, CowArray};
 use ort::{
-    tensor::{FromArray, InputTensor},
-    Environment, ExecutionProvider, GraphOptimizationLevel, SessionBuilder,
+    execution_providers::CPUExecutionProviderOptions, Environment, ExecutionProvider,
+    GraphOptimizationLevel, SessionBuilder, Value,
 };
 use std::{path::Path, sync::Arc, thread::available_parallelism};
 
@@ -19,7 +19,9 @@ impl Onnx {
         let environment = Arc::new(
             Environment::builder()
                 .with_name("Embeddings")
-                .with_execution_providers([ExecutionProvider::cpu()])
+                .with_execution_providers([ExecutionProvider::CPU(
+                    CPUExecutionProviderOptions::default(),
+                )])
                 .build()?,
         );
 
@@ -47,25 +49,28 @@ impl EmbeddingsModel for Onnx {
         let token_type_ids = tokenizer_output.get_type_ids();
         let length = input_ids.len();
 
-        let inputs_ids_array = ndarray::Array::from_shape_vec(
+        let inputs_ids_array = CowArray::from(Array::from_shape_vec(
             (1, length),
             input_ids.iter().map(|&x| x as i64).collect(),
-        )?;
+        )?)
+        .into_dyn();
 
-        let attention_mask_array = ndarray::Array::from_shape_vec(
+        let attention_mask_array = CowArray::from(Array::from_shape_vec(
             (1, length),
             attention_mask.iter().map(|&x| x as i64).collect(),
-        )?;
+        )?)
+        .into_dyn();
 
-        let token_type_ids_array = ndarray::Array::from_shape_vec(
+        let token_type_ids_array = CowArray::from(Array::from_shape_vec(
             (1, length),
             token_type_ids.iter().map(|&x| x as i64).collect(),
-        )?;
+        )?)
+        .into_dyn();
 
-        let outputs = self.session.run([
-            InputTensor::from_array(inputs_ids_array.into_dyn()),
-            InputTensor::from_array(attention_mask_array.into_dyn()),
-            InputTensor::from_array(token_type_ids_array.into_dyn()),
+        let outputs = self.session.run(vec![
+            Value::from_array(self.session.allocator(), &inputs_ids_array)?,
+            Value::from_array(self.session.allocator(), &attention_mask_array)?,
+            Value::from_array(self.session.allocator(), &token_type_ids_array)?,
         ])?;
 
         let output_tensor = outputs[0].try_extract().unwrap();

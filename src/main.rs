@@ -22,7 +22,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(model.clone()))
             .app_data(web::Data::new(db.clone()))
     })
-    .bind(("0.0.0.0", 3001))?
+    .bind(("0.0.0.0", 3000))?
     .run()
     .await
 }
