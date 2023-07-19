@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::{
     db::RepositoryEmbeddingsDB,
     utils::conversation::RelevantChunk,
@@ -7,6 +9,26 @@ use crate::{
 };
 use ndarray::ArrayView1;
 use rayon::prelude::*;
+
+pub enum Function {
+    SearchCodebase,
+    SearchFile,
+    SearchPath,
+    None
+}
+
+impl FromStr for Function {
+    type Err = ();
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "search_codebase" => Ok(Self::SearchCodebase),
+            "search_file" => Ok(Self::SearchFile),
+            "search_path" => Ok(Self::SearchPath),
+            "none" => Ok(Self::None),
+            _ => Err(()),
+        }
+    }
+}
 
 pub async fn search_codebase<M: EmbeddingsModel, D: RepositoryEmbeddingsDB>(
     query: &str,

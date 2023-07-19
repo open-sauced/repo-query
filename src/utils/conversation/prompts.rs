@@ -26,13 +26,13 @@ pub fn generate_completion_request(messages: Vec<ChatCompletionMessage>) -> Chat
 pub fn functions() -> Vec<Function> {
     vec![
         Function {
-            name: "none".into(),
+            name: "done".into(),
             description: Some("This is the final step, and signals that you have enough information to respond to the user's query.".into()),
             parameters: Some(FunctionParameters {
-                schema_type: JSONSchemaType::Null,
-                properties: None,
+                schema_type: JSONSchemaType::Object,
+                properties: Some(HashMap::new()),
                 required: None,
-            }.into())
+            }.into()),
         },
         Function {
             name: "search_codebase".into(),

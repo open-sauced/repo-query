@@ -1,7 +1,9 @@
 mod prompts;
 
-use crate::github::Repository;
+use crate::db::RepositoryEmbeddingsDB;
 use crate::prelude::*;
+use crate::{embeddings::EmbeddingsModel, github::Repository};
+use openai_api_rs::v1::chat_completion::{FinishReason, FunctionCall};
 use openai_api_rs::v1::{
     api::Client,
     chat_completion::{
@@ -11,8 +13,12 @@ use openai_api_rs::v1::{
 
 use serde::Deserialize;
 use std::env;
+use std::str::FromStr;
+use std::sync::Arc;
 
 use prompts::{generate_completion_request, system_message};
+
+use super::functions::Function;
 
 #[derive(Deserialize)]
 pub struct Query {
@@ -54,14 +60,16 @@ impl ToString for RelevantChunk {
     }
 }
 
-pub struct Conversation {
+pub struct Conversation<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> {
     query: Query,
     client: Client,
     messages: Vec<ChatCompletionMessage>,
+    db: Arc<D>,
+    model: Arc<M>,
 }
 
-impl Conversation {
-    pub fn new(query: Query) -> Self {
+impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
+    pub fn new(query: Query, db: Arc<D>, model: Arc<M>) -> Self {
         Self {
             client: Client::new(env::var("OPENAI_API_KEY").unwrap().to_string()),
             messages: vec![
@@ -79,6 +87,8 @@ impl Conversation {
                 },
             ],
             query,
+            db,
+            model,
         }
     }
 
@@ -91,8 +101,34 @@ impl Conversation {
     }
 
     pub async fn generate_answer(&self) {
-        'conversation: loop {
-            let _request = generate_completion_request(self.messages.clone());
+        let request = generate_completion_request(self.messages.clone());
+        let response = self.send_request(request).await.unwrap();
+        match response.choices[0].finish_reason {
+            FinishReason::function_call => {
+                match response.choices[0].message.function_call.clone() {
+                    Some(function_call) => {
+                        let parsed_function_call = parse_function_call(function_call).unwrap();
+                    }
+                    None => {}
+                }
+            }
+            _ => {}
         }
+        {}
     }
+}
+
+fn parse_function_call(mut func: FunctionCall) -> Result<ParsedFunctionCall> {
+    let function_name = Function::from_str(&func.name.get_or_insert("none".into())).unwrap();
+    let function_args = func.arguments.get_or_insert("{}".to_string());
+    let function_args = serde_json::from_str::<serde_json::Value>(function_args)?;
+    Ok(ParsedFunctionCall {
+        name: function_name,
+        args: function_args,
+    })
+}
+
+struct ParsedFunctionCall {
+    name: Function,
+    args: serde_json::Value,
 }
