@@ -1,4 +1,4 @@
-use crate::utils::conversation::Query;
+use crate::utils::conversation::{Query, Conversation};
 use crate::{db::RepositoryEmbeddingsDB, github::Repository};
 use actix_web::{
     post,
@@ -35,5 +35,7 @@ async fn query(
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> impl Responder {
+    let mut conversation = Conversation::new(data.into_inner(), db.get_ref().clone(), model.get_ref().clone());
+    let _response = conversation.generate_answer().await;
     HttpResponse::new(StatusCode::SERVICE_UNAVAILABLE)
 }

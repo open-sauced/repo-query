@@ -26,7 +26,7 @@ pub fn generate_completion_request(messages: Vec<ChatCompletionMessage>) -> Chat
 pub fn functions() -> Vec<Function> {
     vec![
         Function {
-            name: "done".into(),
+            name: "none".into(),
             description: Some("This is the final step, and signals that you have enough information to respond to the user's query.".into()),
             parameters: Some(FunctionParameters {
                 schema_type: JSONSchemaType::Object,
@@ -42,7 +42,7 @@ pub fn functions() -> Vec<Function> {
                 properties: Some(HashMap::from([
                     ("query".into(), Box::new(JSONSchemaDefine {
                         schema_type: Some(JSONSchemaType::String),
-                        description: Some("The query with which to search. This should consist of keywords that might match something in the repository, e.g. 'project dependencies'".to_string()),
+                        description: Some("The query with which to search. This should consist of keywords that might match something in the repository related to the query".to_string()),
                         enum_values: None,
                         properties: None,
                         required: None,
@@ -58,7 +58,7 @@ pub fn functions() -> Vec<Function> {
             parameters: Some(FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(HashMap::from([
-                    ("query".into(), Box::new(JSONSchemaDefine {
+                    ("path".into(), Box::new(JSONSchemaDefine {
                         schema_type: Some(JSONSchemaType::String),
                         description: Some("The query with which to search. This should consist of keywords that might match a file path, e.g. 'src/components/Footer'.".to_string()),
                         enum_values: None,
@@ -67,12 +67,12 @@ pub fn functions() -> Vec<Function> {
                         items: None,
                     }))
                 ])),
-                required: Some(vec!["query".into()]),
+                required: Some(vec!["path".into()]),
             }.into())
         },
         Function {
             name: "search_file".into(),
-            description: Some("Search a file semantically. Results will not necessarily match search terms exactly, but should be related.".into()),
+            description: Some("Search a file returned from functions.search_path. Results will not necessarily match search terms exactly, but should be related.".into()),
             parameters: Some(FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(HashMap::from([
@@ -85,8 +85,8 @@ pub fn functions() -> Vec<Function> {
                         items: None,
                     })),
                     ("path".into(), Box::new(JSONSchemaDefine {
-                        schema_type: Some(JSONSchemaType::Number),
-                        description: Some("The file path to search".to_string()),
+                        schema_type: Some(JSONSchemaType::String),
+                        description: Some("A file path to search".to_string()),
                         enum_values: None,
                         properties: None,
                         required: None,
@@ -104,15 +104,13 @@ pub fn system_message() -> String {
     s.push_str(
         r#"Your job is to choose a function that will help you answer a query about a repository
 Follow these rules at all times:
-- If the output of a function is empty, try the same function again with different arguments or try using a different function
-- If there have been 5 function calls, respond with functions.none
+- When you have enough information to answer the  user's query respond with functions.none
 - In most cases respond with functions.search_codebase or functions.search_path functions before responding with functions.none
 - Do not assume the structure of the codebase, or the existence of files or folders
 - Do NOT respond with a function that you've used before with the same arguments
-- When you have enough information to answer the  user's query respond with functions.none
+- Do NOT respond with functions.search_file unless you have already called functions.search_path
 - If after making a path search the query can be answered by the existance of the paths, use the functions.none function
-- Only refer to paths that are returned by the functions.search_path function
-- Respond with functions to find information related to the query, until all relevant information has been found.
+- Only refer to paths that are returned by the functions.search_path function when calling functions.search_file
 - If after attempting to gather information you are still unsure how to answer the query, respond with the functions.none function
 - Always respond with a function call. Do NOT answer the question directly"#
 );

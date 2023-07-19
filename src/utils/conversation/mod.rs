@@ -4,7 +4,6 @@ use crate::db::RepositoryEmbeddingsDB;
 use crate::prelude::*;
 use crate::{embeddings::EmbeddingsModel, github::Repository};
 use openai_api_rs::v1::chat_completion::{FinishReason, FunctionCall};
-use openai_api_rs::v1::completion;
 use openai_api_rs::v1::{
     api::Client,
     chat_completion::{
@@ -51,14 +50,16 @@ impl ToString for Query {
 #[derive(Debug)]
 pub struct RelevantChunk {
     pub path: String,
+    pub query: String,
     pub content: String,
 }
 
 impl ToString for RelevantChunk {
     fn to_string(&self) -> String {
         format!(
-            "##Relevant file chunk##\nFile path:{}\nChunk content: {}",
+            "##Relevant file chunk##\nPath argument:{}\nQuery argument:{}\nRelevant content: {}",
             self.path,
+            self.query,
             self.content.trim()
         )
     }
@@ -105,63 +106,75 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
     }
 
     pub async fn generate_answer(&mut self) -> Result<()> {
-        let request = generate_completion_request(self.messages.clone());
-        let response = self.send_request(request).await.unwrap();
+        'conversation: loop {
+            let request = generate_completion_request(self.messages.clone());
+            let response = self.send_request(request).await.unwrap();
 
-        if let FinishReason::function_call = response.choices[0].finish_reason {
-            if let Some(function_call) = response.choices[0].message.function_call.clone() {
-                let parsed_function_call = parse_function_call(function_call)?;
-                match parsed_function_call.name {
-                    Function::SearchCodebase => {
-                        let query: &str = parsed_function_call.args["query"]
-                            .as_str()
-                            .unwrap_or_default();
-                        let relevant_chunks = search_codebase(
-                            query,
-                            &self.query.repository,
-                            self.model.as_ref(),
-                            self.db.as_ref(),
-                            3,
-                            2,
-                        )
-                        .await?;
-                        let completion_message =
-                            relevant_chunks_to_completion_message(relevant_chunks);
-                        self.append_message(completion_message);
+            if let FinishReason::function_call = response.choices[0].finish_reason {
+                if let Some(function_call) = response.choices[0].message.function_call.clone() {
+                    let parsed_function_call = parse_function_call(function_call)?;
+                    dbg!(parsed_function_call.clone());
+                    match parsed_function_call.name {
+                        Function::SearchCodebase => {
+                            let query: &str = parsed_function_call.args["query"]
+                                .as_str()
+                                .unwrap_or_default();
+                            let relevant_chunks = search_codebase(
+                                query,
+                                &self.query.repository,
+                                self.model.as_ref(),
+                                self.db.as_ref(),
+                                3,
+                                2,
+                            )
+                            .await?;
+                            let completion_message = relevant_chunks_to_completion_message(
+                                parsed_function_call.name.to_string(),
+                                relevant_chunks,
+                            );
+                            self.append_message(completion_message);
+                        }
+                        Function::SearchFile => {
+                            let query: &str = parsed_function_call.args["query"]
+                                .as_str()
+                                .unwrap_or_default();
+                            let path: &str = parsed_function_call.args["path"]
+                                .as_str()
+                                .unwrap_or_default();
+                            let relevant_chunks = search_file(
+                                path,
+                                query,
+                                &self.query.repository,
+                                self.model.as_ref(),
+                                2,
+                            )
+                            .await?;
+                            let completion_message = relevant_chunks_to_completion_message(
+                                parsed_function_call.name.to_string(),
+                                relevant_chunks,
+                            );
+                            self.append_message(completion_message);
+                        }
+                        Function::SearchPath => {
+                            let path: &str = parsed_function_call.args["path"]
+                                .as_str()
+                                .unwrap_or_default();
+                            let fuzzy_matched_paths =
+                                search_path(path, &self.query.repository, self.db.as_ref(), 1)
+                                    .await?;
+                            let completion_message = paths_to_completion_message(
+                                parsed_function_call.name.to_string(),
+                                fuzzy_matched_paths,
+                            );
+                            self.append_message(completion_message);
+                        }
+                        Function::None => {
+                            break 'conversation;
+                        }
                     }
-                    Function::SearchFile => {
-                        let query: &str = parsed_function_call.args["query"]
-                            .as_str()
-                            .unwrap_or_default();
-                        let path: &str = parsed_function_call.args["path"]
-                            .as_str()
-                            .unwrap_or_default();
-                        let relevant_chunks = search_file(
-                            path,
-                            query,
-                            &self.query.repository,
-                            self.model.as_ref(),
-                            2,
-                        )
-                        .await?;
-                        let completion_message =
-                            relevant_chunks_to_completion_message(relevant_chunks);
-                        self.append_message(completion_message);
-                    }
-                    Function::SearchPath => {
-                        let path: &str = parsed_function_call.args["path"]
-                            .as_str()
-                            .unwrap_or_default();
-                        let fuzzy_matched_paths =
-                            search_path(path, &self.query.repository, self.db.as_ref(), 3).await?;
-                        let completion_message = paths_to_completion_message(fuzzy_matched_paths);
-                        self.append_message(completion_message);
-                    }
-                    Function::None => {}
-                }
-            };
+                };
+            }
         }
-
         Ok(())
     }
 }
@@ -176,6 +189,7 @@ fn parse_function_call(mut func: FunctionCall) -> Result<ParsedFunctionCall> {
     })
 }
 
+#[derive(Debug, Clone)]
 struct ParsedFunctionCall {
     name: Function,
     args: serde_json::Value,

@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::{
     db::RepositoryEmbeddingsDB,
     embeddings::{cosine_similarity, Embeddings, EmbeddingsModel},
-    github::{fetch_file_content, Repository, RepositoryFilePaths},
+    github::{fetch_file_content, Repository},
     prelude::*,
     utils::conversation::RelevantChunk,
 };
@@ -11,6 +11,7 @@ use ndarray::ArrayView1;
 use openai_api_rs::v1::chat_completion::{ChatCompletionMessage, MessageRole};
 use rayon::prelude::*;
 
+#[derive(Debug, Clone)]
 pub enum Function {
     SearchCodebase,
     SearchFile,
@@ -27,6 +28,17 @@ impl FromStr for Function {
             "search_path" => Ok(Self::SearchPath),
             "none" => Ok(Self::None),
             _ => Err(()),
+        }
+    }
+}
+
+impl ToString for Function {
+    fn to_string(&self) -> String {
+        match self {
+            Self::SearchCodebase => "search_codebase".to_string(),
+            Self::SearchFile => "search_file".to_string(),
+            Self::SearchPath => "search_path".to_string(),
+            Self::None => "none".to_string(),
         }
     }
 }
@@ -89,6 +101,7 @@ pub async fn search_file<M: EmbeddingsModel>(
         .iter()
         .map(|index| RelevantChunk {
             path: path.to_string(),
+            query: query.to_string(),
             content: cleaned_chunks[*index].to_string(),
         })
         .collect();
@@ -107,11 +120,11 @@ pub async fn search_path<D: RepositoryEmbeddingsDB>(path: &str, repository: &Rep
     Ok(file_paths)
 }
 
-pub fn paths_to_completion_message(paths: Vec<String>) -> ChatCompletionMessage {
+pub fn paths_to_completion_message(function_name: String, paths: Vec<String>) -> ChatCompletionMessage {
     let paths = paths.join(", ");
 
     ChatCompletionMessage {
-        name: Some("search_path".to_string()),
+        name: Some(function_name),
         role: MessageRole::function,
         content: Some(paths),
         function_call: None,
@@ -119,6 +132,7 @@ pub fn paths_to_completion_message(paths: Vec<String>) -> ChatCompletionMessage 
 }
 
 pub fn relevant_chunks_to_completion_message(
+    function_name: String,
     relevant_chunks: Vec<RelevantChunk>,
 ) -> ChatCompletionMessage {
     let chunks = relevant_chunks
@@ -128,7 +142,7 @@ pub fn relevant_chunks_to_completion_message(
         .join("\n\n");
 
     ChatCompletionMessage {
-        name: Some("search_codebase".to_string()),
+        name: Some(function_name),
         role: MessageRole::function,
         content: Some(chunks),
         function_call: None,
