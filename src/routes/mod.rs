@@ -1,7 +1,7 @@
 use crate::utils::conversation::{Conversation, Query};
 use crate::{db::RepositoryEmbeddingsDB, github::Repository};
 use actix_web::{
-    post,
+    get, post,
     web::{self, Json},
     HttpResponse, Responder, Result,
 };
@@ -9,6 +9,11 @@ use reqwest::StatusCode;
 use std::sync::Arc;
 
 use crate::{db::QdrantDB, embeddings::Onnx, github::embed_repo};
+
+#[derive(serde::Deserialize)]
+struct Q {
+    q: String,
+}
 
 #[post("/embeddings")]
 async fn embeddings(
@@ -29,17 +34,18 @@ async fn embeddings(
     }
 }
 
-#[post("/query")]
+#[get("/query/{owner}/{name}/{branch}")]
 async fn query(
-    data: Json<Query>,
+    path: web::Path<Repository>,
+    info: web::Query<Q>,
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> Result<impl Responder> {
-    let mut conversation = Conversation::new(
-        data.into_inner(),
-        db.get_ref().clone(),
-        model.get_ref().clone(),
-    );
+    let query = Query {
+        query: info.q.to_owned(),
+        repository: path.into_inner().to_owned(),
+    };
+    let mut conversation = Conversation::new(query, db.get_ref().clone(), model.get_ref().clone());
     match conversation.generate().await {
         Ok(response) => Ok(HttpResponse::Ok().json(response)),
         Err(e) => {

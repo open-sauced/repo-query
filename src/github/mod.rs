@@ -37,7 +37,7 @@ pub struct RepositoryEmbeddings {
 #[derive(Serialize, Debug)]
 pub struct RepositoryFilePaths {
     pub repo_id: String,
-    pub file_paths: Vec<String>
+    pub file_paths: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -92,13 +92,14 @@ async fn fetch_repo_files(repository: Repository) -> Result<Vec<File>> {
     let files: Vec<File> = (0..archive.len())
         .filter_map(|file| {
             let mut file = archive.by_index(file).unwrap();
-            if file.is_file() {
+            let file_path = file.name().split_once("/").unwrap().1.to_string();
+            if file.is_file() && should_index(&file_path) {
                 let mut content = String::new();
                 let length = content.len();
                 //Fails for non UTF-8 files
                 match file.read_to_string(&mut content) {
                     Ok(_) => Some(File {
-                        path: file.name().split_once("/").unwrap().1.to_string(),
+                        path: file_path,
                         content: content,
                         length,
                     }),
@@ -127,4 +128,27 @@ pub async fn fetch_file_content(repository: &Repository, path: &str) -> Result<S
     } else {
         Err(anyhow::anyhow!("Unable to fetch file content"))
     }
+}
+
+const IGNORED_EXTENSIONS: &[&str] = &[
+    "bpg", "eps", "pcx", "ppm", "tga", "tiff", "wmf", "xpm", "svg", "ttf", "woff2", "fnt", "fon",
+    "otf", "pdf", "ps", "dot", "docx", "dotx", "xls", "xlsx", "xlt", "lock", "odt", "ott", "ods",
+    "ots", "dvi", "pcl", "mod", "jar", "pyc", "war", "ear", "bz2", "xz", "rpm", "coff", "obj",
+    "dll", "class", "log",
+];
+
+const IGNORED_DIRECTORIES: &[&str] = &[
+    "vendor",
+    "dist",
+    "build",
+    "target",
+    "bin",
+    "obj",
+    "node_modules",
+    "debug",
+];
+
+pub fn should_index(path: &str) -> bool {
+    !(IGNORED_EXTENSIONS.iter().any(|ext| path.ends_with(ext))
+        || IGNORED_DIRECTORIES.iter().any(|dir| path.contains(dir)))
 }

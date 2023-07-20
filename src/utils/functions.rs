@@ -74,7 +74,7 @@ pub async fn search_file<M: EmbeddingsModel>(
 ) -> Result<Vec<RelevantChunk>> {
     let file_content = fetch_file_content(&repository, path).await?;
     let splitter = text_splitter::TextSplitter::default().with_trim_chunks(true);
-    let chunks: Vec<&str> = splitter.chunks(&file_content, 500..700).collect();
+    let chunks: Vec<&str> = splitter.chunks(&file_content, 300..400).collect();
     let cleaned_chunks: Vec<String> = chunks
         .iter()
         .map(|s| s.split_whitespace().collect::<Vec<&str>>().join(" "))

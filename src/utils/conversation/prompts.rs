@@ -124,8 +124,8 @@ pub fn system_message() -> String {
         r#"Your job is to choose a function that will help you answer the user's query about a GitHub repository's codebase.
 Follow these rules at all times:
 - Respond with functions to find information related to the query, until all relevant information has been found.
+- If the output of a function is not relevant or sufficient, try the same function again with different arguments or try using a different function
 - When you have enough information to answer the user's query respond with functions.none
-- In most cases respond with functions.search_codebase or functions.search_path functions before responding with functions.none
 - Do not assume the structure of the codebase, or the existence of files or folders
 - Do NOT respond with a function that you've used before with the same arguments
 - Do NOT respond with functions.search_file unless you have already called functions.search_path
