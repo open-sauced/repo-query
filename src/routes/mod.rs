@@ -1,9 +1,9 @@
-use crate::utils::conversation::{Query, Conversation};
+use crate::utils::conversation::{Conversation, Query};
 use crate::{db::RepositoryEmbeddingsDB, github::Repository};
 use actix_web::{
     post,
     web::{self, Json},
-    HttpResponse, Responder,
+    HttpResponse, Responder, Result,
 };
 use reqwest::StatusCode;
 use std::sync::Arc;
@@ -34,8 +34,17 @@ async fn query(
     data: Json<Query>,
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
-) -> impl Responder {
-    let mut conversation = Conversation::new(data.into_inner(), db.get_ref().clone(), model.get_ref().clone());
-    let _response = conversation.generate_answer().await;
-    HttpResponse::new(StatusCode::SERVICE_UNAVAILABLE)
+) -> Result<impl Responder> {
+    let mut conversation = Conversation::new(
+        data.into_inner(),
+        db.get_ref().clone(),
+        model.get_ref().clone(),
+    );
+    match conversation.generate().await {
+        Ok(response) => Ok(HttpResponse::Ok().json(response)),
+        Err(e) => {
+            dbg!(e);
+            Ok(HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR))
+        }
+    }
 }

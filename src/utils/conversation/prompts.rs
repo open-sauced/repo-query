@@ -4,22 +4,42 @@ use openai_api_rs::v1::chat_completion::{
 };
 use std::collections::HashMap;
 
-pub fn generate_completion_request(messages: Vec<ChatCompletionMessage>) -> ChatCompletionRequest {
-    ChatCompletionRequest {
-        model: GPT3_5_TURBO.into(),
-        messages,
-        functions: Some(functions()),
-        function_call: Some("auto".to_string()),
-        temperature: None,
-        top_p: None,
-        n: None,
-        stream: None,
-        stop: None,
-        max_tokens: None,
-        presence_penalty: None,
-        frequency_penalty: None,
-        logit_bias: None,
-        user: None,
+pub fn generate_completion_request(messages: Vec<ChatCompletionMessage>, with_functions: bool) -> ChatCompletionRequest {
+    
+    if with_functions {
+        ChatCompletionRequest {
+            model: GPT3_5_TURBO.into(),
+            messages,
+            functions: Some(functions()),
+            function_call: None,
+            temperature: Some(0.2),
+            top_p: None,
+            n: None,
+            stream: None,
+            stop: None,
+            max_tokens: None,
+            presence_penalty: None,
+            frequency_penalty: None,
+            logit_bias: None,
+            user: None,
+        }
+    } else {
+        ChatCompletionRequest {
+            model: GPT3_5_TURBO.into(),
+            messages,
+            functions: None,
+            function_call: None,
+            temperature: Some(0.5),
+            top_p: None,
+            n: None,
+            stream: None,
+            stop: None,
+            max_tokens: None,
+            presence_penalty: None,
+            frequency_penalty: None,
+            logit_bias: None,
+            user: None,
+        }
     }
 }
 
@@ -42,7 +62,7 @@ pub fn functions() -> Vec<Function> {
                 properties: Some(HashMap::from([
                     ("query".into(), Box::new(JSONSchemaDefine {
                         schema_type: Some(JSONSchemaType::String),
-                        description: Some("The query with which to search. This should consist of keywords that might match something in the repository related to the query".to_string()),
+                        description: Some("The query with which to search. This should consist of keywords that might match something in the codebase".to_string()),
                         enum_values: None,
                         properties: None,
                         required: None,
@@ -101,10 +121,10 @@ pub fn functions() -> Vec<Function> {
 
 pub fn system_message() -> String {
     String::from(
-        r#"Your job is to choose a function that will help you answer a query about a repository
+        r#"Your job is to choose a function that will help you answer the user's query about a GitHub repository's codebase.
 Follow these rules at all times:
+- Respond with functions to find information related to the query, until all relevant information has been found.
 - When you have enough information to answer the user's query respond with functions.none
-- If there have been upto 5 function calls, respond with functions.none
 - In most cases respond with functions.search_codebase or functions.search_path functions before responding with functions.none
 - Do not assume the structure of the codebase, or the existence of files or folders
 - Do NOT respond with a function that you've used before with the same arguments
@@ -113,5 +133,20 @@ Follow these rules at all times:
 - Only refer to paths that are returned by the functions.search_path function when calling functions.search_file
 - If after attempting to gather information you are still unsure how to answer the query, respond with the functions.none function
 - Always respond with a function call. Do NOT answer the question directly"#,
+    )
+}
+
+pub fn answer_generation_prompt() -> String {
+    String::from(
+        r#"Your job is to answer a user query about a GitHub repository's codebase.
+Given is the history of the function calls made by you to retrieve all relevant information from the repository and their responses
+Follow these rules at all times:
+- Use the information from the function calls to generate a response
+- Do NOT assume the structure of the codebase, or the existence of files or folders
+- Do NOT make up answer if there is not enough information to answer the query
+- Each function response has path information that you can use to cite the source
+- The user's query includes the repository information to which the query pertains
+Adhering to the above rules, generate a comprehensive reply to the user's query
+"#,
     )
 }
