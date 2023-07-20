@@ -1,56 +1,58 @@
 use crate::utils::conversation::{Conversation, Query};
 use crate::{db::RepositoryEmbeddingsDB, github::Repository};
 use actix_web::{
-    get, post,
+    post,
     web::{self, Json},
-    HttpResponse, Responder, Result,
+    HttpResponse, Responder,
 };
+use actix_web_lab::sse::channel;
 use reqwest::StatusCode;
 use std::sync::Arc;
 
 use crate::{db::QdrantDB, embeddings::Onnx, github::embed_repo};
 
-#[derive(serde::Deserialize)]
-struct Q {
-    q: String,
-}
-
-#[post("/embeddings")]
+#[post("/embed")]
 async fn embeddings(
     data: Json<Repository>,
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> impl Responder {
-    let embeddings = embed_repo(data.into_inner(), model.get_ref().as_ref())
-        .await
-        .unwrap();
+    let (tx, rx) = channel(1);
 
-    match db.get_ref().insert_repo_embeddings(embeddings).await {
-        Ok(_) => HttpResponse::new(StatusCode::CREATED),
-        Err(e) => {
-            dbg!(e);
-            return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR);
+    actix_rt::spawn(async move {
+        let embeddings = embed_repo(data.into_inner(), model.get_ref().as_ref(), &tx)
+            .await
+            .unwrap();
+
+        match db.get_ref().insert_repo_embeddings(embeddings).await {
+            Ok(_) => HttpResponse::new(StatusCode::CREATED),
+            Err(e) => {
+                dbg!(e);
+                return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR);
+            }
         }
-    }
+    });
+
+    rx
 }
 
-#[get("/query/{owner}/{name}/{branch}")]
+#[post("/query")]
 async fn query(
-    path: web::Path<Repository>,
-    info: web::Query<Q>,
+    data: Json<Query>,
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
-) -> Result<impl Responder> {
-    let query = Query {
-        query: info.q.to_owned(),
-        repository: path.into_inner().to_owned(),
-    };
-    let mut conversation = Conversation::new(query, db.get_ref().clone(), model.get_ref().clone());
-    match conversation.generate().await {
-        Ok(response) => Ok(HttpResponse::Ok().json(response)),
-        Err(e) => {
-            dbg!(e);
-            Ok(HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR))
-        }
-    }
+) -> impl Responder {
+    let (tx, rx) = channel(0);
+
+    actix_rt::spawn(async move {
+        let mut conversation = Conversation::new(
+            data.into_inner(),
+            db.get_ref().clone(),
+            model.get_ref().clone(),
+            tx,
+        );
+        let _ = conversation.generate().await;
+    });
+
+    rx
 }

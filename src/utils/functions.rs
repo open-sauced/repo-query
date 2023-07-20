@@ -20,14 +20,14 @@ pub enum Function {
 }
 
 impl FromStr for Function {
-    type Err = ();
+    type Err = anyhow::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
             "search_codebase" => Ok(Self::SearchCodebase),
             "search_file" => Ok(Self::SearchFile),
             "search_path" => Ok(Self::SearchPath),
             "none" => Ok(Self::None),
-            _ => Err(()),
+            _ => Err(anyhow::anyhow!("Invalid function")),
         }
     }
 }
@@ -49,7 +49,7 @@ pub async fn search_codebase<M: EmbeddingsModel, D: RepositoryEmbeddingsDB>(
     model: &M,
     db: &D,
     files_limit: usize,
-    chunks_limit: usize
+    chunks_limit: usize,
 ) -> Result<Vec<RelevantChunk>> {
     let query_embeddings = model.embed(query)?;
     let relevant_files = db
@@ -107,7 +107,12 @@ pub async fn search_file<M: EmbeddingsModel>(
     Ok(relevant_chunks)
 }
 
-pub async fn search_path<D: RepositoryEmbeddingsDB>(path: &str, repository: &Repository, db: &D, limit: usize) -> Result<Vec<String>> {
+pub async fn search_path<D: RepositoryEmbeddingsDB>(
+    path: &str,
+    repository: &Repository,
+    db: &D,
+    limit: usize,
+) -> Result<Vec<String>> {
     let list = db.get_file_paths(repository).await?;
     let file_paths: Vec<&str> = list.file_paths.iter().map(String::as_ref).collect();
     let response: Vec<(&str, f32)> =
@@ -119,7 +124,10 @@ pub async fn search_path<D: RepositoryEmbeddingsDB>(path: &str, repository: &Rep
     Ok(file_paths)
 }
 
-pub fn paths_to_completion_message(function_name: String, paths: Vec<String>) -> ChatCompletionMessage {
+pub fn paths_to_completion_message(
+    function_name: String,
+    paths: Vec<String>,
+) -> ChatCompletionMessage {
     let paths = paths.join(", ");
 
     ChatCompletionMessage {

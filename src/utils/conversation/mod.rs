@@ -3,6 +3,7 @@ mod prompts;
 use crate::db::RepositoryEmbeddingsDB;
 use crate::prelude::*;
 use crate::{embeddings::EmbeddingsModel, github::Repository};
+use actix_web_lab::sse::Sender;
 use openai_api_rs::v1::chat_completion::{FinishReason, FunctionCall};
 use openai_api_rs::v1::{
     api::Client,
@@ -76,10 +77,11 @@ pub struct Conversation<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> {
     messages: Vec<ChatCompletionMessage>,
     db: Arc<D>,
     model: Arc<M>,
+    sender: Sender,
 }
 
 impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
-    pub fn new(query: Query, db: Arc<D>, model: Arc<M>) -> Self {
+    pub fn new(query: Query, db: Arc<D>, model: Arc<M>, sender: Sender) -> Self {
         Self {
             client: Client::new(env::var("OPENAI_API_KEY").unwrap().to_string()),
             messages: vec![
@@ -99,6 +101,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
             query,
             db,
             model,
+            sender,
         }
     }
 
@@ -228,7 +231,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
 
 fn parse_function_call(func: &FunctionCall) -> Result<ParsedFunctionCall> {
     let func = func.clone();
-    let function_name = Function::from_str(&func.name.unwrap_or("none".into())).unwrap();
+    let function_name = Function::from_str(&func.name.unwrap_or("none".into()))?;
     let function_args = func.arguments.unwrap_or("{}".to_string());
     let function_args = serde_json::from_str::<serde_json::Value>(&function_args)?;
     Ok(ParsedFunctionCall {

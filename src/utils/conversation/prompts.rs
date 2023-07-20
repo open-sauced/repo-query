@@ -12,7 +12,7 @@ pub fn generate_completion_request(messages: Vec<ChatCompletionMessage>, with_fu
             messages,
             functions: Some(functions()),
             function_call: None,
-            temperature: Some(0.2),
+            temperature: Some(0.7),
             top_p: None,
             n: None,
             stream: None,
@@ -127,7 +127,7 @@ Follow these rules at all times:
 - If the output of a function is not relevant or sufficient, try the same function again with different arguments or try using a different function
 - When you have enough information to answer the user's query respond with functions.none
 - Do not assume the structure of the codebase, or the existence of files or folders
-- Do NOT respond with a function that you've used before with the same arguments
+- Never respond with a function that you've used before with the same arguments
 - Do NOT respond with functions.search_file unless you have already called functions.search_path
 - If after making a path search the query can be answered by the existance of the paths, use the functions.none function
 - Only refer to paths that are returned by the functions.search_path function when calling functions.search_file

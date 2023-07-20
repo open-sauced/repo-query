@@ -13,7 +13,6 @@ use qdrant_client::{
     qdrant::{vectors_config::Config, ScrollPoints, VectorParams, VectorsConfig},
 };
 use rayon::prelude::*;
-use uuid::Uuid;
 
 pub struct QdrantDB {
     client: QdrantClient,
@@ -39,11 +38,12 @@ impl RepositoryEmbeddingsDB for QdrantDB {
         let points: Vec<PointStruct> = repo
             .file_embeddings
             .into_par_iter()
+            .enumerate()
             .map(|file| {
-                let FileEmbeddings { path, embeddings } = file;
+                let FileEmbeddings { path, embeddings } = file.1;
                 let payload: Payload = HashMap::from([("path", path.into())]).into();
 
-                PointStruct::new(Uuid::new_v4().to_string(), embeddings, payload)
+                PointStruct::new(file.0 as u64, embeddings, payload)
             })
             .collect();
         self.client
@@ -104,15 +104,10 @@ impl RepositoryEmbeddingsDB for QdrantDB {
         })
     }
 }
+
 impl QdrantDB {
     pub fn initialize() -> Result<QdrantDB> {
-        let mut config = QdrantClientConfig::from_url(
-            &std::env::var("QDRANT_URL").expect("QDRANT_URL environment variable not set"),
-        );
-        config.set_api_key(
-            &std::env::var("QDRANT_API_KEY").expect("QDRANT_API_KEY environment variable not set"),
-        );
-        let client = QdrantClient::new(Some(config))?;
+        let client = QdrantClient::new(None)?;
         Ok(QdrantDB { client })
     }
 }

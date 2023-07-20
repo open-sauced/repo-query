@@ -1,7 +1,9 @@
+#![allow(unused_must_use)]
 use crate::{
     embeddings::{Embeddings, EmbeddingsModel},
     prelude::*,
 };
+use actix_web_lab::sse::{self, Sender};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use std::io::Read;
@@ -56,11 +58,18 @@ impl ToString for Repository {
 pub async fn embed_repo<M: EmbeddingsModel + Send + Sync>(
     repository: Repository,
     model: &M,
+    sender: &Sender,
 ) -> Result<RepositoryEmbeddings> {
-    let time = std::time::Instant::now();
+    sender
+        .send(sse::Data::new("").event("FETCHING_REPO"))
+        .await?;
+
     let files: Vec<File> = fetch_repo_files(repository.clone()).await?;
-    println!("Time to fetch files: {:?}", time.elapsed());
-    let time = std::time::Instant::now();
+
+    sender
+        .send(sse::Data::new("").event("EMBEDDING_FILES"))
+        .await?;
+
     let file_embeddings: Vec<FileEmbeddings> = files
         .into_par_iter()
         .filter_map(|file| {
@@ -72,7 +81,11 @@ pub async fn embed_repo<M: EmbeddingsModel + Send + Sync>(
             })
         })
         .collect();
-    println!("Time to embed files: {:?}", time.elapsed());
+
+    sender
+        .send(sse::Data::new("").event("SAVING_EMBEDDINGS"))
+        .await;
+
     Ok(RepositoryEmbeddings {
         repo_id: repository.to_string(),
         file_embeddings,
@@ -86,13 +99,17 @@ async fn fetch_repo_files(repository: Repository) -> Result<Vec<File>> {
         branch,
     } = repository;
     let url = format!("https://github.com/{owner}/{name}/archive/{branch}.zip");
+
     let response = reqwest::get(url).await?.bytes().await?;
+
     let reader = std::io::Cursor::new(response);
     let mut archive = zip::ZipArchive::new(reader)?;
+
     let files: Vec<File> = (0..archive.len())
         .filter_map(|file| {
             let mut file = archive.by_index(file).unwrap();
             let file_path = file.name().split_once("/").unwrap().1.to_string();
+
             if file.is_file() && should_index(&file_path) {
                 let mut content = String::new();
                 let length = content.len();
