@@ -1,15 +1,19 @@
+#![allow(unused_must_use)]
+mod events;
+
+use crate::github::fetch_repo_files;
 use crate::utils::conversation::{Conversation, Query};
 use crate::{db::RepositoryEmbeddingsDB, github::Repository};
 use actix_web::{
     post,
     web::{self, Json},
-    HttpResponse, Responder,
+    Responder,
 };
-use actix_web_lab::sse::channel;
-use reqwest::StatusCode;
+use actix_web_lab::sse;
 use std::sync::Arc;
 
 use crate::{db::QdrantDB, embeddings::Onnx, github::embed_repo};
+use events::{emit, EmbedEvent};
 
 #[post("/embed")]
 async fn embeddings(
@@ -17,20 +21,21 @@ async fn embeddings(
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> impl Responder {
-    let (tx, rx) = channel(1);
+    let (tx, rx) = sse::channel(1);
 
     actix_rt::spawn(async move {
-        let embeddings = embed_repo(data.into_inner(), model.get_ref().as_ref(), &tx)
-            .await
-            .unwrap();
+        let repository = data.into_inner();
 
-        match db.get_ref().insert_repo_embeddings(embeddings).await {
-            Ok(_) => HttpResponse::new(StatusCode::CREATED),
-            Err(e) => {
-                dbg!(e);
-                return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        }
+        emit(&tx, EmbedEvent::FetchRepo.into()).await;
+        let files = fetch_repo_files(&repository).await?;
+
+        emit(&tx, EmbedEvent::EmbedRepo.into()).await;
+        let embeddings = embed_repo(&repository, files, model.get_ref().as_ref()).await?;
+
+        emit(&tx, EmbedEvent::SaveEmbeddings.into()).await;
+        db.get_ref().insert_repo_embeddings(embeddings).await?;
+
+        Ok::<(), anyhow::Error>(())
     });
 
     rx
@@ -42,7 +47,7 @@ async fn query(
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> impl Responder {
-    let (tx, rx) = channel(0);
+    let (tx, rx) = sse::channel(1);
 
     actix_rt::spawn(async move {
         let mut conversation = Conversation::new(

@@ -3,7 +3,6 @@ use crate::{
     embeddings::{Embeddings, EmbeddingsModel},
     prelude::*,
 };
-use actix_web_lab::sse::{self, Sender};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use std::io::Read;
@@ -56,20 +55,10 @@ impl ToString for Repository {
 }
 
 pub async fn embed_repo<M: EmbeddingsModel + Send + Sync>(
-    repository: Repository,
+    repository: &Repository,
+    files: Vec<File>,
     model: &M,
-    sender: &Sender,
 ) -> Result<RepositoryEmbeddings> {
-    sender
-        .send(sse::Data::new("").event("FETCHING_REPO"))
-        .await?;
-
-    let files: Vec<File> = fetch_repo_files(repository.clone()).await?;
-
-    sender
-        .send(sse::Data::new("").event("EMBEDDING_FILES"))
-        .await?;
-
     let file_embeddings: Vec<FileEmbeddings> = files
         .into_par_iter()
         .filter_map(|file| {
@@ -82,24 +71,22 @@ pub async fn embed_repo<M: EmbeddingsModel + Send + Sync>(
         })
         .collect();
 
-    sender
-        .send(sse::Data::new("").event("SAVING_EMBEDDINGS"))
-        .await;
-
     Ok(RepositoryEmbeddings {
         repo_id: repository.to_string(),
         file_embeddings,
     })
 }
 
-async fn fetch_repo_files(repository: Repository) -> Result<Vec<File>> {
+pub async fn fetch_repo_files(
+    repository: &Repository
+) -> Result<Vec<File>> {
     let Repository {
         owner,
         name,
         branch,
     } = repository;
-    let url = format!("https://github.com/{owner}/{name}/archive/{branch}.zip");
 
+    let url = format!("https://github.com/{owner}/{name}/archive/{branch}.zip");
     let response = reqwest::get(url).await?.bytes().await?;
 
     let reader = std::io::Cursor::new(response);
