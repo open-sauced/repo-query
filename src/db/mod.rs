@@ -18,4 +18,6 @@ pub trait RepositoryEmbeddingsDB {
     ) -> Result<RepositoryFilePaths>;
 
     async fn get_file_paths(&self, repository: &Repository) -> Result<RepositoryFilePaths>;
+
+    async fn is_indexed(&self, repository: &Repository) -> Result<bool>;
 }

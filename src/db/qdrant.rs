@@ -22,6 +22,9 @@ pub struct QdrantDB {
 #[async_trait]
 impl RepositoryEmbeddingsDB for QdrantDB {
     async fn insert_repo_embeddings(&self, repo: RepositoryEmbeddings) -> Result<()> {
+        if self.client.has_collection(&repo.repo_id).await? {
+            self.client.delete_collection(&repo.repo_id).await?;
+        }
         self.client
             .create_collection(&CreateCollection {
                 collection_name: repo.repo_id.clone(),
@@ -103,6 +106,10 @@ impl RepositoryEmbeddingsDB for QdrantDB {
             repo_id: repository.to_string(),
             file_paths,
         })
+    }
+
+    async fn is_indexed(&self, repository: &Repository) -> Result<bool> {
+        self.client.has_collection(repository.to_string()).await
     }
 }
 

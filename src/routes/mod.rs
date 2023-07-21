@@ -5,8 +5,10 @@ use crate::constants::SSE_CHANNEL_BUFFER_SIZE;
 use crate::conversation::{Conversation, Query};
 use crate::github::fetch_repo_files;
 use crate::{db::RepositoryEmbeddingsDB, github::Repository};
+use actix_web::web::Query as ActixQuery;
+use actix_web::HttpResponse;
 use actix_web::{
-    post,
+    get, post,
     web::{self, Json},
     Responder,
 };
@@ -69,4 +71,18 @@ async fn query(
     });
 
     rx
+}
+
+#[get("/collection")]
+async fn repo(
+    data: ActixQuery<Repository>,
+    db: web::Data<Arc<QdrantDB>>,
+) -> actix_web::Result<impl Responder> {
+    let is_indexed = db.is_indexed(&data.into_inner()).await.unwrap_or_default();
+
+    if is_indexed {
+        Ok(HttpResponse::Ok())
+    } else {
+        Ok(HttpResponse::NotFound())
+    }
 }
