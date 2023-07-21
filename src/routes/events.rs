@@ -15,14 +15,14 @@ macro_rules!  sse_events {
        #[derive(Debug, PartialEq)]
        pub enum $name
         {
-            $($key),*
+            $($key(String)),*
         }
 
         impl From<$name> for Data {
             fn from(event: $name) -> Data {
                 match event {
                     $(
-                        $name::$key => Data::new("").event($value)
+                        $name::$key(data) => Data::new(data).event($value)
                     ),*
                 }
             }
@@ -36,4 +36,13 @@ sse_events! {
     (FetchRepo, "FETCH_REPO"),
     (EmbedRepo, "EMBED_REPO"),
     (SaveEmbeddings, "SAVE_EMBEDDINGS"),
+}
+
+sse_events! {
+    QueryEvent,
+    (SearchCodebase, "SEARCH_CODEBASE"),
+    (SearchFile, "SEARCH_FILE"),
+    (SearchPath, "SEARCH_PATH"),
+    (GenerateResponse, "GENERATE_RESPONSE"),
+    (Done, "DONE"),
 }

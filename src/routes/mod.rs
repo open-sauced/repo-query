@@ -1,5 +1,5 @@
 #![allow(unused_must_use)]
-mod events;
+pub mod events;
 
 use crate::constants::SSE_CHANNEL_BUFFER_SIZE;
 use crate::github::fetch_repo_files;
@@ -22,18 +22,18 @@ async fn embeddings(
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> impl Responder {
-    let (tx, rx) = sse::channel(SSE_CHANNEL_BUFFER_SIZE);
+    let (sender, rx) = sse::channel(SSE_CHANNEL_BUFFER_SIZE);
 
     actix_rt::spawn(async move {
         let repository = data.into_inner();
 
-        emit(&tx, EmbedEvent::FetchRepo.into()).await;
+        emit(&sender, EmbedEvent::FetchRepo(String::new()).into()).await;
         let files = fetch_repo_files(&repository).await?;
 
-        emit(&tx, EmbedEvent::EmbedRepo.into()).await;
+        emit(&sender, EmbedEvent::EmbedRepo(String::new()).into()).await;
         let embeddings = embed_repo(&repository, files, model.get_ref().as_ref()).await?;
 
-        emit(&tx, EmbedEvent::SaveEmbeddings.into()).await;
+        emit(&sender, EmbedEvent::SaveEmbeddings(String::new()).into()).await;
         db.get_ref().insert_repo_embeddings(embeddings).await?;
 
         Ok::<(), anyhow::Error>(())
@@ -48,14 +48,14 @@ async fn query(
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> impl Responder {
-    let (tx, rx) = sse::channel(SSE_CHANNEL_BUFFER_SIZE);
+    let (sender, rx) = sse::channel(SSE_CHANNEL_BUFFER_SIZE);
 
     actix_rt::spawn(async move {
         let mut conversation = Conversation::new(
             data.into_inner(),
             db.get_ref().clone(),
             model.get_ref().clone(),
-            tx,
+            sender,
         );
         let _ = conversation.generate().await;
     });

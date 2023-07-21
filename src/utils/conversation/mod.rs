@@ -1,9 +1,14 @@
+#![allow(unused_must_use)]
 mod prompts;
 
 use crate::constants::{RELEVANT_CHUNKS_LIMIT, RELEVANT_FILES_LIMIT};
 use crate::db::RepositoryEmbeddingsDB;
 use crate::prelude::*;
-use crate::{embeddings::EmbeddingsModel, github::Repository};
+use crate::{
+    embeddings::EmbeddingsModel,
+    github::Repository,
+    routes::events::{emit, QueryEvent},
+};
 use actix_web_lab::sse::Sender;
 use openai_api_rs::v1::chat_completion::{FinishReason, FunctionCall};
 use openai_api_rs::v1::{
@@ -14,6 +19,7 @@ use openai_api_rs::v1::{
 };
 
 use serde::Deserialize;
+use serde_json::json;
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -71,6 +77,16 @@ impl ToString for RelevantChunk {
 struct ParsedFunctionCall {
     name: Function,
     args: serde_json::Value,
+}
+
+impl ToString for ParsedFunctionCall {
+    fn to_string(&self) -> String {
+        let json = json! {{
+            "name": self.name.to_string(),
+            "args": self.args
+        }};
+        json.to_string()
+    }
 }
 pub struct Conversation<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> {
     query: Query,
@@ -150,6 +166,14 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                     let query: &str = parsed_function_call.args["query"]
                                         .as_str()
                                         .unwrap_or_default();
+                                    emit(
+                                        &self.sender,
+                                        QueryEvent::SearchCodebase(
+                                            parsed_function_call.to_string(),
+                                        )
+                                        .into(),
+                                    )
+                                    .await;
                                     let relevant_chunks = search_codebase(
                                         query,
                                         &self.query.repository,
@@ -172,6 +196,12 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                     let path: &str = parsed_function_call.args["path"]
                                         .as_str()
                                         .unwrap_or_default();
+                                    emit(
+                                        &self.sender,
+                                        QueryEvent::SearchFile(parsed_function_call.to_string())
+                                            .into(),
+                                    )
+                                    .await;
                                     let relevant_chunks = search_file(
                                         path,
                                         query,
@@ -190,6 +220,12 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                     let path: &str = parsed_function_call.args["path"]
                                         .as_str()
                                         .unwrap_or_default();
+                                    emit(
+                                        &self.sender,
+                                        QueryEvent::SearchPath(parsed_function_call.to_string())
+                                            .into(),
+                                    )
+                                    .await;
                                     let fuzzy_matched_paths = search_path(
                                         path,
                                         &self.query.repository,
@@ -209,7 +245,14 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                     //Generate a request with the message history and no functions
                                     let request =
                                         generate_completion_request(self.messages.clone(), false);
-
+                                    emit(
+                                        &self.sender,
+                                        QueryEvent::GenerateResponse(
+                                            parsed_function_call.to_string(),
+                                        )
+                                        .into(),
+                                    )
+                                    .await;
                                     let response = match self.send_request(request).await {
                                         Ok(response) => response,
                                         Err(e) => {
@@ -221,6 +264,8 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                         .content
                                         .clone()
                                         .unwrap_or_default();
+                                    emit(&self.sender, QueryEvent::Done(response.clone()).into())
+                                        .await;
                                     return Ok(response);
                                 }
                             }
