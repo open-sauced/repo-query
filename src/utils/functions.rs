@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
+    constants::FILE_CHUNKER_CAPACITY_RANGE,
     db::RepositoryEmbeddingsDB,
     embeddings::{cosine_similarity, Embeddings, EmbeddingsModel},
     github::{fetch_file_content, Repository},
@@ -53,12 +54,12 @@ pub async fn search_codebase<M: EmbeddingsModel, D: RepositoryEmbeddingsDB>(
 ) -> Result<Vec<RelevantChunk>> {
     let query_embeddings = model.embed(query)?;
     let relevant_files = db
-        .get_relevant_files(&repository, query_embeddings, files_limit)
+        .get_relevant_files(repository, query_embeddings, files_limit)
         .await?
         .file_paths;
     let mut relevant_chunks: Vec<RelevantChunk> = Vec::new();
     for path in relevant_files {
-        let chunks = search_file(&path, query, &repository, model, chunks_limit).await?;
+        let chunks = search_file(&path, query, repository, model, chunks_limit).await?;
         relevant_chunks.extend(chunks);
     }
 
@@ -72,9 +73,11 @@ pub async fn search_file<M: EmbeddingsModel>(
     model: &M,
     chunks_limit: usize,
 ) -> Result<Vec<RelevantChunk>> {
-    let file_content = fetch_file_content(&repository, path).await?;
+    let file_content = fetch_file_content(repository, path).await?;
     let splitter = text_splitter::TextSplitter::default().with_trim_chunks(true);
-    let chunks: Vec<&str> = splitter.chunks(&file_content, 300..400).collect();
+    let chunks: Vec<&str> = splitter
+        .chunks(&file_content, FILE_CHUNKER_CAPACITY_RANGE)
+        .collect();
     let cleaned_chunks: Vec<String> = chunks
         .iter()
         .map(|s| s.split_whitespace().collect::<Vec<&str>>().join(" "))

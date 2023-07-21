@@ -1,6 +1,7 @@
 #![allow(unused_must_use)]
 mod events;
 
+use crate::constants::SSE_CHANNEL_BUFFER_SIZE;
 use crate::github::fetch_repo_files;
 use crate::utils::conversation::{Conversation, Query};
 use crate::{db::RepositoryEmbeddingsDB, github::Repository};
@@ -21,7 +22,7 @@ async fn embeddings(
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> impl Responder {
-    let (tx, rx) = sse::channel(1);
+    let (tx, rx) = sse::channel(SSE_CHANNEL_BUFFER_SIZE);
 
     actix_rt::spawn(async move {
         let repository = data.into_inner();
@@ -47,7 +48,7 @@ async fn query(
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> impl Responder {
-    let (tx, rx) = sse::channel(1);
+    let (tx, rx) = sse::channel(SSE_CHANNEL_BUFFER_SIZE);
 
     actix_rt::spawn(async move {
         let mut conversation = Conversation::new(

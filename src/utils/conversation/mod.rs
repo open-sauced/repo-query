@@ -1,5 +1,6 @@
 mod prompts;
 
+use crate::constants::{RELEVANT_CHUNKS_LIMIT, RELEVANT_FILES_LIMIT};
 use crate::db::RepositoryEmbeddingsDB;
 use crate::prelude::*;
 use crate::{embeddings::EmbeddingsModel, github::Repository};
@@ -83,7 +84,7 @@ pub struct Conversation<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> {
 impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
     pub fn new(query: Query, db: Arc<D>, model: Arc<M>, sender: Sender) -> Self {
         Self {
-            client: Client::new(env::var("OPENAI_API_KEY").unwrap().to_string()),
+            client: Client::new(env::var("OPENAI_API_KEY").unwrap()),
             messages: vec![
                 ChatCompletionMessage {
                     name: None,
@@ -110,6 +111,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
     }
 
     fn prepare_final_explanation_message(&mut self) {
+        //Update the system prompt using answer_generation_prompt()
         self.messages[0] = ChatCompletionMessage {
             name: None,
             function_call: None,
@@ -125,6 +127,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
     pub async fn generate(&mut self) -> Result<String> {
         #[allow(unused_labels)]
         'conversation: loop {
+            //Generate a request with the message history and functions
             let request = generate_completion_request(self.messages.clone(), true);
 
             match self.send_request(request).await {
@@ -152,8 +155,8 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                         &self.query.repository,
                                         self.model.as_ref(),
                                         self.db.as_ref(),
-                                        3,
-                                        2,
+                                        RELEVANT_FILES_LIMIT,
+                                        RELEVANT_CHUNKS_LIMIT,
                                     )
                                     .await?;
                                     let completion_message = relevant_chunks_to_completion_message(
@@ -174,7 +177,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                         query,
                                         &self.query.repository,
                                         self.model.as_ref(),
-                                        2,
+                                        RELEVANT_CHUNKS_LIMIT,
                                     )
                                     .await?;
                                     let completion_message = relevant_chunks_to_completion_message(
@@ -202,8 +205,11 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                 }
                                 Function::None => {
                                     self.prepare_final_explanation_message();
+
+                                    //Generate a request with the message history and no functions
                                     let request =
                                         generate_completion_request(self.messages.clone(), false);
+
                                     let response = match self.send_request(request).await {
                                         Ok(response) => response,
                                         Err(e) => {

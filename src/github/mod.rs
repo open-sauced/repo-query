@@ -77,9 +77,7 @@ pub async fn embed_repo<M: EmbeddingsModel + Send + Sync>(
     })
 }
 
-pub async fn fetch_repo_files(
-    repository: &Repository
-) -> Result<Vec<File>> {
+pub async fn fetch_repo_files(repository: &Repository) -> Result<Vec<File>> {
     let Repository {
         owner,
         name,
@@ -95,7 +93,7 @@ pub async fn fetch_repo_files(
     let files: Vec<File> = (0..archive.len())
         .filter_map(|file| {
             let mut file = archive.by_index(file).unwrap();
-            let file_path = file.name().split_once("/").unwrap().1.to_string();
+            let file_path = file.name().split_once('/').unwrap().1.to_string();
 
             if file.is_file() && should_index(&file_path) {
                 let mut content = String::new();
@@ -104,7 +102,7 @@ pub async fn fetch_repo_files(
                 match file.read_to_string(&mut content) {
                     Ok(_) => Some(File {
                         path: file_path,
-                        content: content,
+                        content,
                         length,
                     }),
                     Err(_) => None,

@@ -4,15 +4,20 @@ use openai_api_rs::v1::chat_completion::{
 };
 use std::collections::HashMap;
 
-pub fn generate_completion_request(messages: Vec<ChatCompletionMessage>, with_functions: bool) -> ChatCompletionRequest {
-    
+use crate::constants::{FINAL_EXPLANATION_TEMPERATURE, FUNCTIONS_CALLS_TEMPERATURE};
+
+pub fn generate_completion_request(
+    messages: Vec<ChatCompletionMessage>,
+    with_functions: bool,
+) -> ChatCompletionRequest {
+    //All the chat completion requests will have functions except for the final explanation request
     if with_functions {
         ChatCompletionRequest {
             model: GPT3_5_TURBO.into(),
             messages,
             functions: Some(functions()),
             function_call: None,
-            temperature: Some(0.7),
+            temperature: Some(FUNCTIONS_CALLS_TEMPERATURE),
             top_p: None,
             n: None,
             stream: None,
@@ -29,7 +34,7 @@ pub fn generate_completion_request(messages: Vec<ChatCompletionMessage>, with_fu
             messages,
             functions: None,
             function_call: None,
-            temperature: Some(0.5),
+            temperature: Some(FINAL_EXPLANATION_TEMPERATURE),
             top_p: None,
             n: None,
             stream: None,
@@ -52,7 +57,7 @@ pub fn functions() -> Vec<Function> {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(HashMap::new()),
                 required: None,
-            }.into()),
+            }),
         },
         Function {
             name: "search_codebase".into(),
@@ -70,7 +75,7 @@ pub fn functions() -> Vec<Function> {
                     }))
                 ])),
                 required: Some(vec!["query".into()]),
-            }.into())
+            })
         },
         Function {
             name: "search_path".into(),
@@ -88,7 +93,7 @@ pub fn functions() -> Vec<Function> {
                     }))
                 ])),
                 required: Some(vec!["path".into()]),
-            }.into())
+            })
         },
         Function {
             name: "search_file".into(),
@@ -114,7 +119,7 @@ pub fn functions() -> Vec<Function> {
                     }))
                 ])),
                 required: Some(vec!["query".into(), "path".into()]),
-            }.into())
+            })
         }
     ]
 }

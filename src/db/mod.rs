@@ -17,8 +17,5 @@ pub trait RepositoryEmbeddingsDB {
         limit: usize,
     ) -> Result<RepositoryFilePaths>;
 
-    async fn get_file_paths(
-        &self,
-        repository: &Repository
-    ) -> Result<RepositoryFilePaths>;
+    async fn get_file_paths(&self, repository: &Repository) -> Result<RepositoryFilePaths>;
 }

@@ -1,3 +1,4 @@
+mod constants;
 mod db;
 mod embeddings;
 mod github;
@@ -7,6 +8,7 @@ mod utils;
 use std::{path::Path, sync::Arc};
 
 use actix_web::{web, App, HttpResponse, HttpServer};
+use constants::ACTIX_WEB_SERVER_PORT;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -16,13 +18,13 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .route("/", web::get().to(|| HttpResponse::Ok()))
+            .route("/", web::get().to(HttpResponse::Ok))
             .service(routes::embeddings)
             .service(routes::query)
             .app_data(web::Data::new(model.clone()))
             .app_data(web::Data::new(db.clone()))
     })
-    .bind(("0.0.0.0", 3000))?
+    .bind(("0.0.0.0", ACTIX_WEB_SERVER_PORT as u16))?
     .run()
     .await
 }

@@ -18,9 +18,9 @@ macro_rules!  sse_events {
             $($key),*
         }
 
-        impl Into<Data> for $name {
-            fn into(self) -> Data {
-                match self {
+        impl From<$name> for Data {
+            fn from(event: $name) -> Data {
+                match event {
                     $(
                         $name::$key => Data::new("").event($value)
                     ),*

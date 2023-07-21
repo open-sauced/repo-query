@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use super::RepositoryEmbeddingsDB;
 use crate::{
+    constants::{EMBEDDINGS_DIMENSION, MAX_FILES_COUNT},
     embeddings::Embeddings,
     github::{FileEmbeddings, Repository, RepositoryEmbeddings, RepositoryFilePaths},
     prelude::*,
@@ -26,7 +27,7 @@ impl RepositoryEmbeddingsDB for QdrantDB {
                 collection_name: repo.repo_id.clone(),
                 vectors_config: Some(VectorsConfig {
                     config: Some(Config::Params(VectorParams {
-                        size: 384,
+                        size: EMBEDDINGS_DIMENSION as u64,
                         distance: Distance::Cosine.into(),
                         ..Default::default()
                     })),
@@ -86,7 +87,7 @@ impl RepositoryEmbeddingsDB for QdrantDB {
                 collection_name: repository.to_string(),
                 offset: None,
                 filter: None,
-                limit: Some(MAX_FILE_COUNT),
+                limit: Some(MAX_FILES_COUNT as u32),
                 with_payload: Some(true.into()),
                 with_vectors: None,
                 read_consistency: None,
