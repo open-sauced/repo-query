@@ -128,7 +128,7 @@ pub async fn fetch_file_content(repository: &Repository, path: &str) -> Result<S
         let content = response.text().await?;
         Ok(content)
     } else {
-        Err(anyhow::anyhow!("Unable to fetch file content"))
+        Ok(String::new())
     }
 }
 
@@ -153,4 +153,70 @@ const IGNORED_DIRECTORIES: &[&str] = &[
 pub fn should_index(path: &str) -> bool {
     !(IGNORED_EXTENSIONS.iter().any(|ext| path.ends_with(ext))
         || IGNORED_DIRECTORIES.iter().any(|dir| path.contains(dir)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_fetch_repo_files() {
+        let repository = Repository {
+            owner: "open-sauced".to_string(),
+            name: "ai".to_string(),
+            branch: "beta".to_string(),
+        };
+
+        let result = fetch_repo_files(&repository).await;
+
+        // Assert that the function returns a Result containing a vector of File
+        assert!(result.is_ok());
+        let files = result.unwrap();
+        assert!(files.len() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_file_content() {
+        let repository = Repository {
+            owner: "open-sauced".to_string(),
+            name: "ai".to_string(),
+            branch: "beta".to_string(),
+        };
+        let path = "package.json";
+
+        let result = fetch_file_content(&repository, path).await;
+
+        // Assert that the function returns a Result containing the file content
+        assert!(result.is_ok());
+        let content = result.unwrap();
+        assert!(content.len() > 0);
+
+        let path = "Some_Invalid_File.example";
+
+        let result = fetch_file_content(&repository, path).await;
+
+        //Assert that the function returns Result containing an empty string for invalid file path
+        assert!(result.is_ok());
+        let content = result.unwrap();
+        assert!(content.len() == 0);
+    }
+
+    #[test]
+    fn test_should_index() {
+        // Test with ignored extensions
+        for ext in IGNORED_EXTENSIONS {
+            let path = format!("path/to/file.{}", ext);
+            assert!(!should_index(&path));
+        }
+
+        // Test with ignored directories
+        for dir in IGNORED_DIRECTORIES {
+            let path = format!("path/to/{}/file.txt", dir);
+            assert!(!should_index(&path));
+        }
+
+        // Test with valid path
+        let path = "path/to/file.tsx";
+        assert!(should_index(&path));
+    }
 }

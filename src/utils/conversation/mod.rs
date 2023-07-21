@@ -1,10 +1,10 @@
 #![allow(unused_must_use)]
 mod prompts;
 
-use crate::constants::{RELEVANT_CHUNKS_LIMIT, RELEVANT_FILES_LIMIT};
-use crate::db::RepositoryEmbeddingsDB;
-use crate::prelude::*;
 use crate::{
+    prelude::*,
+    constants::{RELEVANT_CHUNKS_LIMIT, RELEVANT_FILES_LIMIT},
+    db::RepositoryEmbeddingsDB,
     embeddings::EmbeddingsModel,
     github::Repository,
     routes::events::{emit, QueryEvent},
@@ -17,9 +17,7 @@ use openai_api_rs::v1::{
         ChatCompletionMessage, ChatCompletionRequest, ChatCompletionResponse, MessageRole,
     },
 };
-
 use serde::Deserialize;
-use serde_json::{json, Value};
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -79,14 +77,6 @@ struct ParsedFunctionCall {
     args: serde_json::Value,
 }
 
-impl From<ParsedFunctionCall> for Value {
-    fn from(value: ParsedFunctionCall) -> Value {
-        json! {{
-            "name": value.name.to_string(),
-            "args": value.args
-        }}
-    }
-}
 pub struct Conversation<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> {
     query: Query,
     client: Client,
@@ -168,7 +158,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                     emit(
                                         &self.sender,
                                         QueryEvent::SearchCodebase(Some(
-                                            parsed_function_call.clone().into(),
+                                            parsed_function_call.clone().args,
                                         )),
                                     )
                                     .await;
@@ -182,7 +172,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                     )
                                     .await?;
                                     let completion_message = relevant_chunks_to_completion_message(
-                                        parsed_function_call.name.to_string(),
+                                        parsed_function_call.name,
                                         relevant_chunks,
                                     );
                                     self.append_message(completion_message);
@@ -197,7 +187,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                     emit(
                                         &self.sender,
                                         QueryEvent::SearchFile(Some(
-                                            parsed_function_call.clone().into(),
+                                            parsed_function_call.clone().args,
                                         )),
                                     )
                                     .await;
@@ -210,7 +200,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                     )
                                     .await?;
                                     let completion_message = relevant_chunks_to_completion_message(
-                                        parsed_function_call.name.to_string(),
+                                        parsed_function_call.name,
                                         relevant_chunks,
                                     );
                                     self.append_message(completion_message);
@@ -222,7 +212,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                     emit(
                                         &self.sender,
                                         QueryEvent::SearchPath(Some(
-                                            parsed_function_call.clone().into(),
+                                            parsed_function_call.clone().args,
                                         )),
                                     )
                                     .await;
@@ -234,7 +224,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                     )
                                     .await?;
                                     let completion_message = paths_to_completion_message(
-                                        parsed_function_call.name.to_string(),
+                                        parsed_function_call.name,
                                         fuzzy_matched_paths,
                                     );
                                     self.append_message(completion_message);
@@ -248,7 +238,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                     emit(
                                         &self.sender,
                                         QueryEvent::GenerateResponse(Some(
-                                            parsed_function_call.into(),
+                                            parsed_function_call.args,
                                         )),
                                     )
                                     .await;

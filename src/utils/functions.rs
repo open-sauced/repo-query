@@ -128,13 +128,13 @@ pub async fn search_path<D: RepositoryEmbeddingsDB>(
 }
 
 pub fn paths_to_completion_message(
-    function_name: String,
+    function_name: Function,
     paths: Vec<String>,
 ) -> ChatCompletionMessage {
     let paths = paths.join(", ");
 
     ChatCompletionMessage {
-        name: Some(function_name),
+        name: Some(function_name.to_string()),
         role: MessageRole::function,
         content: Some(paths),
         function_call: None,
@@ -142,7 +142,7 @@ pub fn paths_to_completion_message(
 }
 
 pub fn relevant_chunks_to_completion_message(
-    function_name: String,
+    function_name: Function,
     relevant_chunks: Vec<RelevantChunk>,
 ) -> ChatCompletionMessage {
     let chunks = relevant_chunks
@@ -152,7 +152,7 @@ pub fn relevant_chunks_to_completion_message(
         .join("\n\n");
 
     ChatCompletionMessage {
-        name: Some(function_name),
+        name: Some(function_name.to_string()),
         role: MessageRole::function,
         content: Some(chunks),
         function_call: None,
