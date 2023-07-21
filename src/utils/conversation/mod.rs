@@ -19,7 +19,7 @@ use openai_api_rs::v1::{
 };
 
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -79,13 +79,12 @@ struct ParsedFunctionCall {
     args: serde_json::Value,
 }
 
-impl ToString for ParsedFunctionCall {
-    fn to_string(&self) -> String {
-        let json = json! {{
-            "name": self.name.to_string(),
-            "args": self.args
-        }};
-        json.to_string()
+impl From<ParsedFunctionCall> for Value {
+    fn from(value: ParsedFunctionCall) -> Value {
+        json! {{
+            "name": value.name.to_string(),
+            "args": value.args
+        }}
     }
 }
 pub struct Conversation<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> {
@@ -140,7 +139,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
         Ok(self.client.chat_completion(request).await?)
     }
 
-    pub async fn generate(&mut self) -> Result<String> {
+    pub async fn generate(&mut self) -> Result<()> {
         #[allow(unused_labels)]
         'conversation: loop {
             //Generate a request with the message history and functions
@@ -168,10 +167,9 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                         .unwrap_or_default();
                                     emit(
                                         &self.sender,
-                                        QueryEvent::SearchCodebase(
-                                            parsed_function_call.to_string(),
-                                        )
-                                        .into(),
+                                        QueryEvent::SearchCodebase(Some(
+                                            parsed_function_call.clone().into(),
+                                        )),
                                     )
                                     .await;
                                     let relevant_chunks = search_codebase(
@@ -198,8 +196,9 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                         .unwrap_or_default();
                                     emit(
                                         &self.sender,
-                                        QueryEvent::SearchFile(parsed_function_call.to_string())
-                                            .into(),
+                                        QueryEvent::SearchFile(Some(
+                                            parsed_function_call.clone().into(),
+                                        )),
                                     )
                                     .await;
                                     let relevant_chunks = search_file(
@@ -222,8 +221,9 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                         .unwrap_or_default();
                                     emit(
                                         &self.sender,
-                                        QueryEvent::SearchPath(parsed_function_call.to_string())
-                                            .into(),
+                                        QueryEvent::SearchPath(Some(
+                                            parsed_function_call.clone().into(),
+                                        )),
                                     )
                                     .await;
                                     let fuzzy_matched_paths = search_path(
@@ -247,10 +247,9 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                         generate_completion_request(self.messages.clone(), false);
                                     emit(
                                         &self.sender,
-                                        QueryEvent::GenerateResponse(
-                                            parsed_function_call.to_string(),
-                                        )
-                                        .into(),
+                                        QueryEvent::GenerateResponse(Some(
+                                            parsed_function_call.into(),
+                                        )),
                                     )
                                     .await;
                                     let response = match self.send_request(request).await {
@@ -264,9 +263,9 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                         .content
                                         .clone()
                                         .unwrap_or_default();
-                                    emit(&self.sender, QueryEvent::Done(response.clone()).into())
+                                    emit(&self.sender, QueryEvent::Done(Some(response.into())))
                                         .await;
-                                    return Ok(response);
+                                    return Ok(());
                                 }
                             }
                         };

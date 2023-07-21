@@ -11,6 +11,7 @@ use actix_web::{
     Responder,
 };
 use actix_web_lab::sse;
+use serde_json::json;
 use std::sync::Arc;
 
 use crate::{db::QdrantDB, embeddings::Onnx, github::embed_repo};
@@ -27,15 +28,22 @@ async fn embeddings(
     actix_rt::spawn(async move {
         let repository = data.into_inner();
 
-        emit(&sender, EmbedEvent::FetchRepo(String::new()).into()).await;
+        emit(&sender, EmbedEvent::FetchRepo(None)).await;
         let files = fetch_repo_files(&repository).await?;
 
-        emit(&sender, EmbedEvent::EmbedRepo(String::new()).into()).await;
+        emit(
+            &sender,
+            EmbedEvent::EmbedRepo(Some(json!({
+                "files": files.len(),
+            }))),
+        )
+        .await;
         let embeddings = embed_repo(&repository, files, model.get_ref().as_ref()).await?;
 
-        emit(&sender, EmbedEvent::SaveEmbeddings(String::new()).into()).await;
+        emit(&sender, EmbedEvent::SaveEmbeddings(None)).await;
         db.get_ref().insert_repo_embeddings(embeddings).await?;
 
+        emit(&sender, EmbedEvent::Done(None)).await;
         Ok::<(), anyhow::Error>(())
     });
 

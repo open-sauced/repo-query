@@ -1,9 +1,9 @@
 use actix_web_lab::sse::{Data, SendError, Sender};
 
-pub async fn emit(sender: &Sender, event: Data) -> Result<(), SendError> {
-    sender.send(event).await?;
+pub async fn emit<T: Into<Data>>(sender: &Sender, event: T) -> Result<(), SendError> {
+    sender.send(event.into()).await?;
     //Empty message to force send the above message to receiver
-    //Else, the above message will stay in the buffer
+    //Else, will stay in the buffer when using actix_rt::spawn
     //TODO: Investigate further to avoid this workaround
     sender.send(Data::new("")).await?;
     Ok(())
@@ -15,14 +15,14 @@ macro_rules!  sse_events {
        #[derive(Debug, PartialEq)]
        pub enum $name
         {
-            $($key(String)),*
+            $($key(Option<serde_json::Value>)),*
         }
 
         impl From<$name> for Data {
             fn from(event: $name) -> Data {
                 match event {
                     $(
-                        $name::$key(data) => Data::new(data).event($value)
+                        $name::$key(data) => Data::new(data.unwrap_or_default().to_string()).event($value)
                     ),*
                 }
             }
@@ -36,6 +36,7 @@ sse_events! {
     (FetchRepo, "FETCH_REPO"),
     (EmbedRepo, "EMBED_REPO"),
     (SaveEmbeddings, "SAVE_EMBEDDINGS"),
+    (Done, "DONE"),
 }
 
 sse_events! {
