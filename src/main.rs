@@ -1,4 +1,5 @@
 mod constants;
+mod conversation;
 mod db;
 mod embeddings;
 mod github;

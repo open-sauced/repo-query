@@ -1,81 +1,34 @@
 #![allow(unused_must_use)]
+mod data;
 mod prompts;
 
 use crate::{
-    prelude::*,
     constants::{RELEVANT_CHUNKS_LIMIT, RELEVANT_FILES_LIMIT},
     db::RepositoryEmbeddingsDB,
     embeddings::EmbeddingsModel,
-    github::Repository,
+    prelude::*,
     routes::events::{emit, QueryEvent},
 };
 use actix_web_lab::sse::Sender;
-use openai_api_rs::v1::chat_completion::{FinishReason, FunctionCall};
+pub use data::*;
+use openai_api_rs::v1::chat_completion::FinishReason;
 use openai_api_rs::v1::{
     api::Client,
     chat_completion::{
         ChatCompletionMessage, ChatCompletionRequest, ChatCompletionResponse, MessageRole,
     },
 };
-use serde::Deserialize;
 use std::env;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use prompts::{generate_completion_request, system_message};
 
 use self::prompts::answer_generation_prompt;
 
-use super::functions::{
+use crate::utils::functions::{
     paths_to_completion_message, relevant_chunks_to_completion_message, search_codebase,
     search_file, search_path, Function,
 };
-
-#[derive(Deserialize)]
-pub struct Query {
-    pub repository: Repository,
-    pub query: String,
-}
-
-impl ToString for Query {
-    fn to_string(&self) -> String {
-        let Query {
-            repository:
-                Repository {
-                    owner,
-                    name,
-                    branch,
-                },
-            query,
-        } = self;
-        format!(
-            "##Repository Info##\nOwner:{}\nName:{}\nBranch:{}\n##User Query##\nQuery:{}",
-            owner, name, branch, query
-        )
-    }
-}
-
-#[derive(Debug)]
-pub struct RelevantChunk {
-    pub path: String,
-    pub content: String,
-}
-
-impl ToString for RelevantChunk {
-    fn to_string(&self) -> String {
-        format!(
-            "##Relevant file chunk##\nPath argument:{}\nRelevant content: {}",
-            self.path,
-            self.content.trim()
-        )
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ParsedFunctionCall {
-    name: Function,
-    args: serde_json::Value,
-}
 
 pub struct Conversation<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> {
     query: Query,
@@ -133,7 +86,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
         #[allow(unused_labels)]
         'conversation: loop {
             //Generate a request with the message history and functions
-            let request = generate_completion_request(self.messages.clone(), true);
+            let request = generate_completion_request(self.messages.clone(), "auto");
 
             match self.send_request(request).await {
                 Ok(response) => {
@@ -141,7 +94,8 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                         if let Some(function_call) =
                             response.choices[0].message.function_call.clone()
                         {
-                            let parsed_function_call = parse_function_call(&function_call)?;
+                            let parsed_function_call =
+                                ParsedFunctionCall::try_from(&function_call)?;
                             let function_call_message = ChatCompletionMessage {
                                 name: None,
                                 function_call: Some(function_call),
@@ -229,22 +183,17 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                     );
                                     self.append_message(completion_message);
                                 }
-                                Function::None => {
+                                Function::Done => {
                                     self.prepare_final_explanation_message();
 
                                     //Generate a request with the message history and no functions
                                     let request =
-                                        generate_completion_request(self.messages.clone(), false);
-                                    emit(
-                                        &self.sender,
-                                        QueryEvent::GenerateResponse(Some(
-                                            parsed_function_call.args,
-                                        )),
-                                    )
-                                    .await;
+                                        generate_completion_request(self.messages.clone(), "none");
+                                    emit(&self.sender, QueryEvent::GenerateResponse(None)).await;
                                     let response = match self.send_request(request).await {
                                         Ok(response) => response,
                                         Err(e) => {
+                                            dbg!(e.to_string());
                                             return Err(e);
                                         }
                                     };
@@ -267,15 +216,4 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
             };
         }
     }
-}
-
-fn parse_function_call(func: &FunctionCall) -> Result<ParsedFunctionCall> {
-    let func = func.clone();
-    let function_name = Function::from_str(&func.name.unwrap_or("none".into()))?;
-    let function_args = func.arguments.unwrap_or("{}".to_string());
-    let function_args = serde_json::from_str::<serde_json::Value>(&function_args)?;
-    Ok(ParsedFunctionCall {
-        name: function_name,
-        args: function_args,
-    })
 }

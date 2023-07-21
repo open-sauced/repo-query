@@ -2,46 +2,23 @@ use std::str::FromStr;
 
 use crate::{
     constants::FILE_CHUNKER_CAPACITY_RANGE,
+    conversation::RelevantChunk,
     db::RepositoryEmbeddingsDB,
     embeddings::{cosine_similarity, Embeddings, EmbeddingsModel},
+    functions_enum,
     github::{fetch_file_content, Repository},
     prelude::*,
-    utils::conversation::RelevantChunk,
 };
 use ndarray::ArrayView1;
 use openai_api_rs::v1::chat_completion::{ChatCompletionMessage, MessageRole};
 use rayon::prelude::*;
 
-#[derive(Debug, Clone)]
-pub enum Function {
-    SearchCodebase,
-    SearchFile,
-    SearchPath,
-    None,
-}
-
-impl FromStr for Function {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        match s {
-            "search_codebase" => Ok(Self::SearchCodebase),
-            "search_file" => Ok(Self::SearchFile),
-            "search_path" => Ok(Self::SearchPath),
-            "none" => Ok(Self::None),
-            _ => Err(anyhow::anyhow!("Invalid function")),
-        }
-    }
-}
-
-impl ToString for Function {
-    fn to_string(&self) -> String {
-        match self {
-            Self::SearchCodebase => "search_codebase".to_string(),
-            Self::SearchFile => "search_file".to_string(),
-            Self::SearchPath => "search_path".to_string(),
-            Self::None => "none".to_string(),
-        }
-    }
+functions_enum! {
+    Function,
+    (SearchCodebase, "search_codebase"),
+    (SearchFile, "search_file"),
+    (SearchPath, "search_path"),
+    (Done, "done"),
 }
 
 pub async fn search_codebase<M: EmbeddingsModel, D: RepositoryEmbeddingsDB>(
@@ -73,32 +50,25 @@ pub async fn search_file<M: EmbeddingsModel>(
     model: &M,
     chunks_limit: usize,
 ) -> Result<Vec<RelevantChunk>> {
-    let file_content = fetch_file_content(repository, path).await?;
+    let file_content = fetch_file_content(repository, path).await.unwrap_or_default();
+
     let splitter = text_splitter::TextSplitter::default().with_trim_chunks(true);
+
     let chunks: Vec<&str> = splitter
         .chunks(&file_content, FILE_CHUNKER_CAPACITY_RANGE)
         .collect();
-    let cleaned_chunks: Vec<String> = chunks
-        .iter()
-        .map(|s| s.split_whitespace().collect::<Vec<&str>>().join(" "))
-        .collect();
+
+    let cleaned_chunks: Vec<String> = clean_chunks(chunks);
     let chunks_embeddings: Vec<Embeddings> = cleaned_chunks
         .iter()
         .map(|chunk| model.embed(chunk).unwrap())
         .collect();
+
     let query_embeddings = model.embed(query)?;
-    let similarities: Vec<f32> = chunks_embeddings
-        .par_iter()
-        .map(|embedding| {
-            cosine_similarity(
-                ArrayView1::from(&query_embeddings),
-                ArrayView1::from(embedding),
-            )
-        })
-        .collect();
-    let mut indexed_vec: Vec<(usize, &f32)> = similarities.par_iter().enumerate().collect();
-    indexed_vec.par_sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
-    let indices: Vec<usize> = indexed_vec.iter().map(|x| x.0).take(chunks_limit).collect();
+
+    let similarities: Vec<f32> = similarity_score(chunks_embeddings, query_embeddings);
+
+    let indices = get_top_n_indices(similarities, chunks_limit);
 
     let relevant_chunks: Vec<RelevantChunk> = indices
         .iter()
@@ -157,4 +127,32 @@ pub fn relevant_chunks_to_completion_message(
         content: Some(chunks),
         function_call: None,
     }
+}
+
+//Remove extra whitespaces from chunks
+fn clean_chunks(chunks: Vec<&str>) -> Vec<String> {
+    chunks
+        .iter()
+        .map(|s| s.split_whitespace().collect::<Vec<&str>>().join(" "))
+        .collect()
+}
+
+//Compute cosine similarity between query and file content chunks
+fn similarity_score(files_embeddings: Vec<Embeddings>, query_embeddings: Embeddings) -> Vec<f32> {
+    files_embeddings
+        .par_iter()
+        .map(|embedding| {
+            cosine_similarity(
+                ArrayView1::from(&query_embeddings),
+                ArrayView1::from(embedding),
+            )
+        })
+        .collect()
+}
+
+//Get n indices with highest similarity scores
+fn get_top_n_indices(similarity_scores: Vec<f32>, n: usize) -> Vec<usize> {
+    let mut indexed_vec: Vec<(usize, &f32)> = similarity_scores.par_iter().enumerate().collect();
+    indexed_vec.par_sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+    indexed_vec.iter().map(|x| x.0).take(n).collect()
 }

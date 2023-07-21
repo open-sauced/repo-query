@@ -128,7 +128,7 @@ pub async fn fetch_file_content(repository: &Repository, path: &str) -> Result<S
         let content = response.text().await?;
         Ok(content)
     } else {
-        Ok(String::new())
+        Err(anyhow::anyhow!("Unable to fetch file content"))
     }
 }
 
@@ -195,10 +195,8 @@ mod tests {
 
         let result = fetch_file_content(&repository, path).await;
 
-        //Assert that the function returns Result containing an empty string for invalid file path
-        assert!(result.is_ok());
-        let content = result.unwrap();
-        assert!(content.len() == 0);
+        //Assert that the function returns Err for an invalid file path
+        assert!(result.is_err());
     }
 
     #[test]

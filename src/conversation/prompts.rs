@@ -1,57 +1,39 @@
 use openai_api_rs::v1::chat_completion::{
-    ChatCompletionMessage, ChatCompletionRequest, Function, FunctionParameters, JSONSchemaDefine,
-    JSONSchemaType, GPT3_5_TURBO,
+    ChatCompletionMessage, ChatCompletionRequest, Function as F, FunctionParameters,
+    JSONSchemaDefine, JSONSchemaType, GPT3_5_TURBO,
 };
 use std::collections::HashMap;
 
-use crate::constants::{FINAL_EXPLANATION_TEMPERATURE, FUNCTIONS_CALLS_TEMPERATURE};
+use crate::{constants::CHAT_COMPLETION_TEMPERATURE, utils::functions::Function};
 
 pub fn generate_completion_request(
     messages: Vec<ChatCompletionMessage>,
-    with_functions: bool,
+    function_call: &str,
 ) -> ChatCompletionRequest {
-    //All the chat completion requests will have functions except for the final explanation request
-    if with_functions {
-        ChatCompletionRequest {
-            model: GPT3_5_TURBO.into(),
-            messages,
-            functions: Some(functions()),
-            function_call: None,
-            temperature: Some(FUNCTIONS_CALLS_TEMPERATURE),
-            top_p: None,
-            n: None,
-            stream: None,
-            stop: None,
-            max_tokens: None,
-            presence_penalty: None,
-            frequency_penalty: None,
-            logit_bias: None,
-            user: None,
-        }
-    } else {
-        ChatCompletionRequest {
-            model: GPT3_5_TURBO.into(),
-            messages,
-            functions: None,
-            function_call: None,
-            temperature: Some(FINAL_EXPLANATION_TEMPERATURE),
-            top_p: None,
-            n: None,
-            stream: None,
-            stop: None,
-            max_tokens: None,
-            presence_penalty: None,
-            frequency_penalty: None,
-            logit_bias: None,
-            user: None,
-        }
+    // https://platform.openai.com/docs/api-reference/chat/create
+    ChatCompletionRequest {
+        model: GPT3_5_TURBO.into(),
+        messages,
+        functions: Some(functions()),
+        function_call: Some(function_call.into()),
+        temperature: Some(CHAT_COMPLETION_TEMPERATURE),
+        top_p: None,
+        n: None,
+        stream: None,
+        stop: None,
+        max_tokens: None,
+        presence_penalty: None,
+        frequency_penalty: None,
+        logit_bias: None,
+        user: None,
     }
 }
 
-pub fn functions() -> Vec<Function> {
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions
+pub fn functions() -> Vec<F> {
     vec![
-        Function {
-            name: "none".into(),
+        F {
+            name: Function::Done.to_string(),
             description: Some("This is the final step, and signals that you have enough information to respond to the user's query.".into()),
             parameters: Some(FunctionParameters {
                 schema_type: JSONSchemaType::Object,
@@ -59,8 +41,8 @@ pub fn functions() -> Vec<Function> {
                 required: None,
             }),
         },
-        Function {
-            name: "search_codebase".into(),
+        F {
+            name: Function::SearchCodebase.to_string(),
             description: Some("Search the contents of files in a repository semantically. Results will not necessarily match search terms exactly, but should be related.".into()),
             parameters: Some(FunctionParameters {
                 schema_type: JSONSchemaType::Object,
@@ -77,8 +59,8 @@ pub fn functions() -> Vec<Function> {
                 required: Some(vec!["query".into()]),
             })
         },
-        Function {
-            name: "search_path".into(),
+        F {
+            name: Function::SearchPath.to_string(),
             description: Some("Search the pathnames in a repository. Results may not be exact matches, but will be similar by some edit-distance. Use when you want to find a specific file".into()),
             parameters: Some(FunctionParameters {
                 schema_type: JSONSchemaType::Object,
@@ -95,8 +77,8 @@ pub fn functions() -> Vec<Function> {
                 required: Some(vec!["path".into()]),
             })
         },
-        Function {
-            name: "search_file".into(),
+        F {
+            name: Function::SearchFile.to_string(),
             description: Some("Search a file returned from functions.search_path. Results will not necessarily match search terms exactly, but should be related.".into()),
             parameters: Some(FunctionParameters {
                 schema_type: JSONSchemaType::Object,
@@ -130,13 +112,13 @@ pub fn system_message() -> String {
 Follow these rules at all times:
 - Respond with functions to find information related to the query, until all relevant information has been found.
 - If the output of a function is not relevant or sufficient, try the same function again with different arguments or try using a different function
-- When you have enough information to answer the user's query respond with functions.none
+- When you have enough information to answer the user's query respond with functions.done
 - Do not assume the structure of the codebase, or the existence of files or folders
 - Never respond with a function that you've used before with the same arguments
 - Do NOT respond with functions.search_file unless you have already called functions.search_path
-- If after making a path search the query can be answered by the existance of the paths, use the functions.none function
+- If after making a path search the query can be answered by the existance of the paths, use the functions.done function
 - Only refer to paths that are returned by the functions.search_path function when calling functions.search_file
-- If after attempting to gather information you are still unsure how to answer the query, respond with the functions.none function
+- If after attempting to gather information you are still unsure how to answer the query, respond with the functions.done function
 - Always respond with a function call. Do NOT answer the question directly"#,
     )
 }

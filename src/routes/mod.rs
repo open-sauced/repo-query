@@ -2,8 +2,8 @@
 pub mod events;
 
 use crate::constants::SSE_CHANNEL_BUFFER_SIZE;
+use crate::conversation::{Conversation, Query};
 use crate::github::fetch_repo_files;
-use crate::utils::conversation::{Conversation, Query};
 use crate::{db::RepositoryEmbeddingsDB, github::Repository};
 use actix_web::{
     post,

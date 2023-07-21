@@ -6,9 +6,7 @@ pub const EMBEDDINGS_DIMENSION: usize = 384;
 
 pub const SSE_CHANNEL_BUFFER_SIZE: usize = 1;
 
-pub const FINAL_EXPLANATION_TEMPERATURE: f64 = 0.7;
-
-pub const FUNCTIONS_CALLS_TEMPERATURE: f64 = 0.5;
+pub const CHAT_COMPLETION_TEMPERATURE: f64 = 0.5;
 
 pub const ACTIX_WEB_SERVER_PORT: usize = 3000;
 
