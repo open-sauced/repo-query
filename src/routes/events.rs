@@ -17,6 +17,7 @@ sse_events! {
     (EmbedRepo, "EMBED_REPO"),
     (SaveEmbeddings, "SAVE_EMBEDDINGS"),
     (Done, "DONE"),
+    (Error, "ERROR"),
 }
 
 sse_events! {
@@ -26,4 +27,5 @@ sse_events! {
     (SearchPath, "SEARCH_PATH"),
     (GenerateResponse, "GENERATE_RESPONSE"),
     (Done, "DONE"),
+    (Error, "ERROR"),
 }
