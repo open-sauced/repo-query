@@ -208,6 +208,17 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                 }
                             }
                         };
+                    } else {
+                        //As of yet, there isn't a robust way to instruct the model to respond with function calls only except for switching to GPT-4
+                        //We can only suggest it do so in the system message
+                        // prompts.rs#L124
+                        // A warning from OpenAI's official documentation:
+                        // "gpt-3.5-turbo-0301 does not always pay strong attention to system messages. Future models will be trained to pay strong attention to system messages."
+                        // "If you are using GPT-3.5-turbo, you can already utilize the system role input; however, be aware that it will not pay strong attention to it. On the other hand, if you have access to the GPT-4 preview, you can take full advantage of this powerful feature."
+                        
+                        return Err(anyhow::anyhow!(
+                            "Model returned a non-function call response."
+                        ));
                     }
                 }
                 Err(e) => {

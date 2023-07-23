@@ -1,18 +1,24 @@
 use openai_api_rs::v1::chat_completion::{
     ChatCompletionMessage, ChatCompletionRequest, Function as F, FunctionParameters,
-    JSONSchemaDefine, JSONSchemaType, GPT3_5_TURBO,
+    JSONSchemaDefine, JSONSchemaType,
 };
 use std::collections::HashMap;
 
-use crate::{constants::CHAT_COMPLETION_TEMPERATURE, utils::functions::Function};
+use crate::{
+    constants::{CHAT_COMPLETION_MODEL, CHAT_COMPLETION_TEMPERATURE},
+    utils::functions::Function,
+};
 
+// References:
+// https://platform.openai.com/docs/api-reference/chat/create
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions
+// https://bloop.ai/
 pub fn generate_completion_request(
     messages: Vec<ChatCompletionMessage>,
     function_call: &str,
 ) -> ChatCompletionRequest {
-    // https://platform.openai.com/docs/api-reference/chat/create
     ChatCompletionRequest {
-        model: GPT3_5_TURBO.into(),
+        model: CHAT_COMPLETION_MODEL.into(),
         messages,
         functions: Some(functions()),
         function_call: Some(function_call.into()),
@@ -29,7 +35,6 @@ pub fn generate_completion_request(
     }
 }
 
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions
 pub fn functions() -> Vec<F> {
     vec![
         F {
