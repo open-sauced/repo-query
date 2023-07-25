@@ -29,7 +29,7 @@ Since the service returns responses as SSEs, a REST client like Postman is recom
 
 [![Run in Postman](https://run.pstmn.io/button.svg)](https://app.getpostman.com/run-collection/18073744-276b793e-f5ec-418f-ba0a-9dff94af543e?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D18073744-276b793e-f5ec-418f-ba0a-9dff94af543e%26entityType%3Dcollection%26workspaceId%3D8d8a1363-ad0a-45ad-b036-ef6a37e44ef8)
 
-### 1. `/embed`
+### 1. `POST /embed`
 To generate and store embeddings for a GitHub repository.
 
 #### Parameters
@@ -53,7 +53,7 @@ curl --location 'localhost:3000/embed' \
 }'
 ```
 
-### 2. `/query`
+### 2. `POST /query`
 To perform a query on the API with a specific question related to a repository.
 
 #### Parameters
@@ -83,7 +83,7 @@ curl --location 'localhost:3000/query' \
 }'
 ```
 
-### 3. `/collection`
+### 3. `GET /collection`
 To check if a repository has been indexed.
 
 #### Parameters

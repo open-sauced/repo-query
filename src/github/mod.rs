@@ -172,7 +172,7 @@ mod tests {
         // Assert that the function returns a Result containing a vector of File
         assert!(result.is_ok());
         let files = result.unwrap();
-        assert!(files.len() > 0);
+        assert!(!files.is_empty());
     }
 
     #[tokio::test]
@@ -189,7 +189,7 @@ mod tests {
         // Assert that the function returns a Result containing the file content
         assert!(result.is_ok());
         let content = result.unwrap();
-        assert!(content.len() > 0);
+        assert!(!content.is_empty());
 
         let path = "Some_Invalid_File.example";
 
@@ -215,6 +215,6 @@ mod tests {
 
         // Test with valid path
         let path = "path/to/file.tsx";
-        assert!(should_index(&path));
+        assert!(should_index(path));
     }
 }
