@@ -106,7 +106,7 @@ pub fn paths_to_completion_message(
     ChatCompletionMessage {
         name: Some(function_name.to_string()),
         role: MessageRole::function,
-        content: Some(paths),
+        content: paths,
         function_call: None,
     }
 }
@@ -124,7 +124,7 @@ pub fn relevant_chunks_to_completion_message(
     ChatCompletionMessage {
         name: Some(function_name.to_string()),
         role: MessageRole::function,
-        content: Some(chunks),
+        content: chunks,
         function_call: None,
     }
 }

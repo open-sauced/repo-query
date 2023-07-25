@@ -40,16 +40,16 @@ pub fn functions() -> Vec<F> {
         F {
             name: Function::Done.to_string(),
             description: Some("This is the final step, and signals that you have enough information to respond to the user's query.".into()),
-            parameters: Some(FunctionParameters {
+            parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(HashMap::new()),
                 required: None,
-            }),
+            },
         },
         F {
             name: Function::SearchCodebase.to_string(),
             description: Some("Search the contents of files in a repository semantically. Results will not necessarily match search terms exactly, but should be related.".into()),
-            parameters: Some(FunctionParameters {
+            parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(HashMap::from([
                     ("query".into(), Box::new(JSONSchemaDefine {
@@ -62,12 +62,12 @@ pub fn functions() -> Vec<F> {
                     }))
                 ])),
                 required: Some(vec!["query".into()]),
-            })
+            }
         },
         F {
             name: Function::SearchPath.to_string(),
             description: Some("Search the pathnames in a repository. Results may not be exact matches, but will be similar by some edit-distance. Use when you want to find a specific file".into()),
-            parameters: Some(FunctionParameters {
+            parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(HashMap::from([
                     ("path".into(), Box::new(JSONSchemaDefine {
@@ -80,12 +80,12 @@ pub fn functions() -> Vec<F> {
                     }))
                 ])),
                 required: Some(vec!["path".into()]),
-            })
+            }
         },
         F {
             name: Function::SearchFile.to_string(),
             description: Some("Search a file returned from functions.search_path. Results will not necessarily match search terms exactly, but should be related.".into()),
-            parameters: Some(FunctionParameters {
+            parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(HashMap::from([
                     ("query".into(), Box::new(JSONSchemaDefine {
@@ -106,17 +106,17 @@ pub fn functions() -> Vec<F> {
                     }))
                 ])),
                 required: Some(vec!["query".into(), "path".into()]),
-            })
+            }
         }
     ]
 }
 
 pub fn system_message() -> String {
     String::from(
-        r#"Your job is to choose a function that will help you answer the user's query about a GitHub repository's codebase.
+        r#"Your job is to choose a function that will help retrieve all relevant information to answer a user's query about a GitHub repository.
 Follow these rules at all times:
-- Respond with functions to find information related to the query, until all relevant information has been found.
-- If the output of a function is not relevant or sufficient, try the same function again with different arguments or try using a different function
+- Respond with functions until all relevant information has been found.
+- If the output of a function is not relevant or sufficient, try again with different arguments or try using a different function
 - When you have enough information to answer the user's query respond with functions.done
 - Do not assume the structure of the codebase, or the existence of files or folders
 - Never respond with a function that you've used before with the same arguments
@@ -135,7 +135,6 @@ Given is the history of the function calls made by you to retrieve all relevant 
 Follow these rules at all times:
 - Use the information from the function calls to generate a response
 - Do NOT assume the structure of the codebase, or the existence of files or folders
-- Do NOT make up answer if there is not enough information to answer the query
 - Each function response has path information that you can use to cite the source
 - The user's query includes the repository information to which the query pertains
 Adhering to the above rules, generate a comprehensive reply to the user's query
