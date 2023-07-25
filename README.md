@@ -132,6 +132,21 @@ cargo run --release
 ```
 This command will build and run the project with optimizations enabled(Highly recommended).
 
+## Attributions
+
+https://sbert.net for https://huggingface.co/sentence-transformers/multi-qa-MiniLM-L6-cos-v1.
+```
+@inproceedings{reimers-2020-multilingual-sentence-bert,
+  title = "Making Monolingual Sentence Embeddings Multilingual using Knowledge Distillation",
+  author = "Reimers, Nils and Gurevych, Iryna",
+  booktitle = "Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing",
+  month = "11",
+  year = "2020",
+  publisher = "Association for Computational Linguistics",
+  url = "https://arxiv.org/abs/2004.09813",
+}
+```
+
 ## 🤝 Contributing
 
 We encourage you to contribute to OpenSauced! Please check out the [Contributing guide](https://docs.opensauced.pizza/contributing/introduction-to-contributing/) for guidelines about how to proceed.
