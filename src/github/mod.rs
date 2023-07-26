@@ -5,6 +5,7 @@ use crate::{
 };
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::io::Read;
 
 #[derive(Debug, Default, Serialize)]
@@ -150,6 +151,43 @@ const IGNORED_DIRECTORIES: &[&str] = &[
     "debug",
 ];
 
+const ALLOWED_LICENCES: &[&str] = &[
+    "0bsd",
+    "apache-2.0",
+    "bsd-2-clause",
+    "bsd-3-clause",
+    "bsd-3-clause-clear",
+    "bsd-4-clause",
+    "isc",
+    "mit",
+    "mpl-2.0",
+    "unlicense",
+    "wtfpl",
+    "zlib",
+];
+
+pub async fn is_indexing_allowed(repository: &Repository) -> Result<bool> {
+    let Repository { owner, name, .. } = repository;
+    let url = format!("https://api.github.com/repos/{owner}/{name}/license");
+
+    //User-agent reference: https://docs.github.com/en/rest/overview/resources-in-the-rest-api?apiVersion=2022-11-28#user-agent-required
+    let client = reqwest::Client::builder()
+        .user_agent("open-sauced")
+        .build()
+        .unwrap();
+
+    let response = client.get(url).send().await?;
+    match response.error_for_status() {
+        Ok(response) => {
+            let response_json = response.json::<Value>().await?;
+            let license_key = response_json["license"]["key"].as_str().unwrap_or_default();
+            let is_allowed: bool = ALLOWED_LICENCES.iter().any(|k| k.eq(&license_key));
+            Ok(is_allowed)
+        }
+        Err(_) => Err(anyhow::anyhow!("Unable to fetch repository license")),
+    }
+}
+
 pub fn should_index(path: &str) -> bool {
     !(IGNORED_EXTENSIONS.iter().any(|ext| path.ends_with(ext))
         || IGNORED_DIRECTORIES.iter().any(|dir| path.contains(dir)))
@@ -216,5 +254,38 @@ mod tests {
         // Test with valid path
         let path = "path/to/file.tsx";
         assert!(should_index(path));
+    }
+
+    #[tokio::test]
+    async fn test_is_indexing_allowed() {
+        // Permissible
+        let repository = Repository {
+            owner: "open-sauced".to_string(),
+            name: "ai".to_string(),
+            branch: "beta".to_string(),
+        };
+
+        let is_allowed = is_indexing_allowed(&repository).await.unwrap_or_default();
+        assert_eq!(is_allowed, true);
+
+        //Permissible
+        let repository = Repository {
+            owner: "facebook".to_string(),
+            name: "react".to_string(),
+            branch: "main".to_string(),
+        };
+
+        let is_allowed = is_indexing_allowed(&repository).await.unwrap_or_default();
+        assert_eq!(is_allowed, true);
+
+        //Imermissible
+        let repository = Repository {
+            owner: "open-sauced".to_string(),
+            name: "guestbook".to_string(),
+            branch: "main".to_string(),
+        };
+
+        let is_allowed = is_indexing_allowed(&repository).await.unwrap_or_default();
+        assert_eq!(is_allowed, false);
     }
 }
