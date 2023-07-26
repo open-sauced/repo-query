@@ -1,0 +1,32 @@
+[package]
+name = "open-sauced-repo-query"
+version = "0.1.0"
+edition = "2021"
+description = "A REST service that uses semantic search to answer user queries about public GitHub repositories."
+readme = "README.md"
+repository = "https://github.com/open-sauced/repo-query"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix-web = { version = "4", features = ["rustls"] }
+anyhow = "1"
+async-trait = "0.1"
+dotenv = "0.15"
+ndarray = "0.15"
+ort = "1"
+qdrant-client = "1"
+rayon = "1"
+reqwest = "0.11"
+serde = "1"
+tokenizers = "0.13"
+openai-api-rs = "0.1"
+zip = "0.6"
+rust-fuzzy-search = "0.1"
+text-splitter = "0.4"
+serde_json = "1"
+actix-web-lab = "0.19"
+actix-rt = "2"
+tracing-actix-web = "0.7"
+env_logger = "0.10"
+tokio = "1"
