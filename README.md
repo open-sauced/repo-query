@@ -20,7 +20,7 @@
 </div>
 
 ## 🔎 The Project
-RepoQuery is an early-beta project, that uses recursive [OpenAI function calling](https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions) paired with semantic search using [All-MiniLM-L6-V2](https://huggingface.co/rawsh/multi-qa-MiniLM-distill-onnx-L6-cos-v1/blob/main/onnx/model_quantized.onnx) to index and answer user queries about public GitHub repositories.
+RepoQuery is an early-beta project, that uses recursive [OpenAI function calling](https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions) paired with semantic search using [multi-qa-MiniLM-L6-cos-v1](https://huggingface.co/rawsh/multi-qa-MiniLM-distill-onnx-L6-cos-v1/blob/main/onnx/model_quantized.onnx) to index and answer user queries about public GitHub repositories.
 
 ##  📬 Service Endpoints
 
