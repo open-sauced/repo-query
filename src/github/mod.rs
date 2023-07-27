@@ -5,6 +5,7 @@ use crate::{
 };
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use std::io::Read;
 
 #[derive(Debug, Default, Serialize)]
@@ -150,6 +151,62 @@ const IGNORED_DIRECTORIES: &[&str] = &[
     "debug",
 ];
 
+const ALLOWED_LICENSES: &[&str] = &[
+    "0bsd",
+    "apache-2.0",
+    "bsd-2-clause",
+    "bsd-3-clause",
+    "bsd-3-clause-clear",
+    "bsd-4-clause",
+    "isc",
+    "mit",
+    "unlicense",
+    "wtfpl",
+    "zlib",
+];
+
+#[derive(Serialize, Debug, Default)]
+pub struct LicenseFetchResponse {
+    pub permissible: bool,
+    pub error: Option<Value>,
+}
+
+pub async fn fetch_license_info(repository: &Repository) -> Result<LicenseFetchResponse> {
+    let Repository { owner, name, .. } = repository;
+    let url = format!("https://api.github.com/repos/{owner}/{name}/license");
+
+    //User-agent reference: https://docs.github.com/en/rest/overview/resources-in-the-rest-api?apiVersion=2022-11-28#user-agent-required
+    let client = reqwest::Client::builder()
+        .user_agent("open-sauced")
+        .build()
+        .unwrap();
+
+    let response = client.get(url).send().await?;
+    match response.error_for_status() {
+        Ok(response) => {
+            let response_json = response.json::<Value>().await?;
+            let license_key = response_json["license"]["key"].as_str().unwrap_or_default();
+            let permissible: bool = ALLOWED_LICENSES.iter().any(|k| k.eq(&license_key));
+
+            Ok(LicenseFetchResponse {
+                permissible,
+                error: if permissible {
+                    None
+                } else {
+                    Some(json! {{
+                        "message": "Impermissible repository license",
+                        "license": {
+                            "name": response_json["license"]["name"],
+                            "url": response_json["html_url"]
+                        }
+                    }})
+                },
+            })
+        }
+        Err(_) => Err(anyhow::anyhow!("Unable to fetch repository license")),
+    }
+}
+
 pub fn should_index(path: &str) -> bool {
     !(IGNORED_EXTENSIONS.iter().any(|ext| path.ends_with(ext))
         || IGNORED_DIRECTORIES.iter().any(|dir| path.contains(dir)))
@@ -216,5 +273,38 @@ mod tests {
         // Test with valid path
         let path = "path/to/file.tsx";
         assert!(should_index(path));
+    }
+
+    #[tokio::test]
+    async fn test_is_indexing_allowed() {
+        // Permissible
+        let repository = Repository {
+            owner: "open-sauced".to_string(),
+            name: "ai".to_string(),
+            branch: "beta".to_string(),
+        };
+
+        let license_info = fetch_license_info(&repository).await.unwrap_or_default();
+        assert_eq!(license_info.permissible, true);
+
+        //Permissible
+        let repository = Repository {
+            owner: "facebook".to_string(),
+            name: "react".to_string(),
+            branch: "main".to_string(),
+        };
+
+        let license_info = fetch_license_info(&repository).await.unwrap_or_default();
+        assert_eq!(license_info.permissible, true);
+
+        //Impermissible
+        let repository = Repository {
+            owner: "open-sauced".to_string(),
+            name: "guestbook".to_string(),
+            branch: "main".to_string(),
+        };
+
+        let license_info = fetch_license_info(&repository).await.unwrap_or_default();
+        assert_eq!(license_info.permissible, false);
     }
 }

@@ -3,13 +3,13 @@ pub mod events;
 
 use crate::constants::SSE_CHANNEL_BUFFER_SIZE;
 use crate::conversation::{Conversation, Query};
-use crate::github::fetch_repo_files;
+use crate::github::{fetch_license_info, fetch_repo_files};
 use crate::routes::events::QueryEvent;
 use crate::{db::RepositoryEmbeddingsDB, github::Repository};
 use actix_web::web::Query as ActixQuery;
 use actix_web::HttpResponse;
 use actix_web::{
-    error::ErrorNotFound,
+    error::{ErrorBadRequest, ErrorForbidden, ErrorNotFound},
     get, post,
     web::{self, Json},
     Responder, Result,
@@ -26,7 +26,12 @@ async fn embeddings(
     data: Json<Repository>,
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
-) -> impl Responder {
+) -> Result<impl Responder> {
+    let license_info = fetch_license_info(&data).await.map_err(ErrorBadRequest)?;
+    if !license_info.permissible {
+        return Err(ErrorForbidden(license_info.error.unwrap_or_default()));
+    }
+
     let (sender, rx) = sse::channel(SSE_CHANNEL_BUFFER_SIZE);
 
     actix_rt::spawn(async move {
@@ -58,7 +63,7 @@ async fn embeddings(
         }
     });
 
-    rx
+    Ok(rx)
 }
 
 #[post("/query")]
