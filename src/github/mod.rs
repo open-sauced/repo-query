@@ -285,7 +285,6 @@ mod tests {
         };
 
         let license_info = fetch_license_info(&repository).await.unwrap_or_default();
-        dbg!(&license_info);
         assert_eq!(license_info.permissible, true);
 
         //Permissible
