@@ -278,7 +278,7 @@ mod tests {
         let is_allowed = is_indexing_allowed(&repository).await.unwrap_or_default();
         assert_eq!(is_allowed, true);
 
-        //Imermissible
+        //Impermissible
         let repository = Repository {
             owner: "open-sauced".to_string(),
             name: "guestbook".to_string(),
