@@ -3,7 +3,7 @@ pub mod events;
 
 use crate::constants::SSE_CHANNEL_BUFFER_SIZE;
 use crate::conversation::{Conversation, Query};
-use crate::github::{fetch_repo_files, is_indexing_allowed};
+use crate::github::{fetch_license_info, fetch_repo_files};
 use crate::routes::events::QueryEvent;
 use crate::{db::RepositoryEmbeddingsDB, github::Repository};
 use actix_web::web::Query as ActixQuery;
@@ -27,8 +27,9 @@ async fn embeddings(
     db: web::Data<Arc<QdrantDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> Result<impl Responder> {
-    if !is_indexing_allowed(&data).await.map_err(ErrorBadRequest)? {
-        return Err(ErrorForbidden("Impermissible repository license"));
+    let license_info = fetch_license_info(&data).await.map_err(ErrorBadRequest)?;
+    if !license_info.permissible {
+        return Err(ErrorForbidden(license_info.error.unwrap_or_default()));
     }
 
     let (sender, rx) = sse::channel(SSE_CHANNEL_BUFFER_SIZE);

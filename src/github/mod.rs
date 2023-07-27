@@ -5,7 +5,7 @@ use crate::{
 };
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::io::Read;
 
 #[derive(Debug, Default, Serialize)]
@@ -151,7 +151,7 @@ const IGNORED_DIRECTORIES: &[&str] = &[
     "debug",
 ];
 
-const ALLOWED_LICENCES: &[&str] = &[
+const ALLOWED_LICENSES: &[&str] = &[
     "0bsd",
     "apache-2.0",
     "bsd-2-clause",
@@ -160,13 +160,18 @@ const ALLOWED_LICENCES: &[&str] = &[
     "bsd-4-clause",
     "isc",
     "mit",
-    "mpl-2.0",
     "unlicense",
     "wtfpl",
     "zlib",
 ];
 
-pub async fn is_indexing_allowed(repository: &Repository) -> Result<bool> {
+#[derive(Serialize, Debug, Default)]
+pub struct LicenseFetchResponse {
+    pub permissible: bool,
+    pub error: Option<Value>,
+}
+
+pub async fn fetch_license_info(repository: &Repository) -> Result<LicenseFetchResponse> {
     let Repository { owner, name, .. } = repository;
     let url = format!("https://api.github.com/repos/{owner}/{name}/license");
 
@@ -181,8 +186,22 @@ pub async fn is_indexing_allowed(repository: &Repository) -> Result<bool> {
         Ok(response) => {
             let response_json = response.json::<Value>().await?;
             let license_key = response_json["license"]["key"].as_str().unwrap_or_default();
-            let is_allowed: bool = ALLOWED_LICENCES.iter().any(|k| k.eq(&license_key));
-            Ok(is_allowed)
+            let permissible: bool = ALLOWED_LICENSES.iter().any(|k| k.eq(&license_key));
+
+            Ok(LicenseFetchResponse {
+                permissible,
+                error: if permissible {
+                    None
+                } else {
+                    Some(json! {{
+                        "message": "Impermissible repository license",
+                        "license": {
+                            "name": response_json["license"]["name"],
+                            "url": response_json["html_url"]
+                        }
+                    }})
+                },
+            })
         }
         Err(_) => Err(anyhow::anyhow!("Unable to fetch repository license")),
     }
@@ -265,8 +284,9 @@ mod tests {
             branch: "beta".to_string(),
         };
 
-        let is_allowed = is_indexing_allowed(&repository).await.unwrap_or_default();
-        assert_eq!(is_allowed, true);
+        let license_info = fetch_license_info(&repository).await.unwrap_or_default();
+        dbg!(&license_info);
+        assert_eq!(license_info.permissible, true);
 
         //Permissible
         let repository = Repository {
@@ -275,8 +295,8 @@ mod tests {
             branch: "main".to_string(),
         };
 
-        let is_allowed = is_indexing_allowed(&repository).await.unwrap_or_default();
-        assert_eq!(is_allowed, true);
+        let license_info = fetch_license_info(&repository).await.unwrap_or_default();
+        assert_eq!(license_info.permissible, true);
 
         //Impermissible
         let repository = Repository {
@@ -285,7 +305,7 @@ mod tests {
             branch: "main".to_string(),
         };
 
-        let is_allowed = is_indexing_allowed(&repository).await.unwrap_or_default();
-        assert_eq!(is_allowed, false);
+        let license_info = fetch_license_info(&repository).await.unwrap_or_default();
+        assert_eq!(license_info.permissible, false);
     }
 }
