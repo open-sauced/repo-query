@@ -22,6 +22,7 @@ sse_events! {
 
 sse_events! {
     QueryEvent,
+    (ProcessQuery, "PROCESS_QUERY"),
     (SearchCodebase, "SEARCH_CODEBASE"),
     (SearchFile, "SEARCH_FILE"),
     (SearchPath, "SEARCH_PATH"),
