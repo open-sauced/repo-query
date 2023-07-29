@@ -115,7 +115,11 @@ impl RepositoryEmbeddingsDB for QdrantDB {
 
 impl QdrantDB {
     pub fn initialize() -> Result<QdrantDB> {
-        let client = QdrantClient::new(None)?;
+        let qdrant_url =
+            std::env::var("QDRANT_URL").unwrap_or(String::from("http://localhost:6334"));
+            dbg!(&qdrant_url);
+        let config = QdrantClientConfig::from_url(&qdrant_url);
+        let client = QdrantClient::new(Some(config))?;
         Ok(QdrantDB { client })
     }
 }
