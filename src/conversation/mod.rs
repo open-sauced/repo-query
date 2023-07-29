@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 use prompts::{generate_completion_request, system_message};
 
-use self::prompts::answer_generation_prompt;
+use self::prompts::{answer_generation_prompt, sanitize_query_prompt};
 
 use crate::utils::functions::{
     paths_to_completion_message, relevant_chunks_to_completion_message, search_codebase,
@@ -40,8 +40,15 @@ pub struct Conversation<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> {
 }
 
 impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
-    pub fn new(query: Query, db: Arc<D>, model: Arc<M>, sender: Sender) -> Self {
-        Self {
+    pub async fn initiate(
+        mut query: Query,
+        db: Arc<D>,
+        model: Arc<M>,
+        sender: Sender,
+    ) -> Result<Self> {
+        emit(&sender, QueryEvent::ProcessQuery(None)).await;
+        query.query = sanitize_query(&query.query).await?;
+        Ok(Self {
             client: Client::new(env::var("OPENAI_API_KEY").unwrap()),
             messages: vec![
                 ChatCompletionMessage {
@@ -61,7 +68,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
             db,
             model,
             sender,
-        }
+        })
     }
 
     fn append_message(&mut self, message: ChatCompletionMessage) {
@@ -243,5 +250,31 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                 }
             };
         }
+    }
+}
+
+async fn sanitize_query(query: &str) -> Result<String> {
+    let message = ChatCompletionMessage {
+        name: None,
+        function_call: None,
+        role: MessageRole::user,
+        content: sanitize_query_prompt(query),
+    };
+    let client = Client::new(env::var("OPENAI_API_KEY")?);
+    let request = generate_completion_request(vec![message], "none");
+    let response = client.chat_completion(request).await?;
+    if let FinishReason::stop = response.choices[0].finish_reason {
+        let sanitized_query = response.choices[0]
+            .message
+            .content
+            .clone()
+            .unwrap_or_default();
+        if sanitized_query.is_empty() {
+            Err(anyhow::anyhow!("No query found"))
+        } else {
+            Ok(sanitized_query)
+        }
+    } else {
+        Err(anyhow::anyhow!("Query sanitization failed"))
     }
 }

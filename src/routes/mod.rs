@@ -1,7 +1,7 @@
 #![allow(unused_must_use)]
 pub mod events;
-
 use crate::constants::SSE_CHANNEL_BUFFER_SIZE;
+
 use crate::conversation::{Conversation, Query};
 use crate::github::{fetch_license_info, fetch_repo_files};
 use crate::routes::events::QueryEvent;
@@ -35,7 +35,7 @@ async fn embeddings(
     let (sender, rx) = sse::channel(SSE_CHANNEL_BUFFER_SIZE);
 
     actix_rt::spawn(async move {
-        let handle_embed = || async {
+        let handle_embed = async {
             let repository = data.into_inner();
 
             emit(&sender, EmbedEvent::FetchRepo(None)).await;
@@ -57,9 +57,9 @@ async fn embeddings(
             Ok::<(), anyhow::Error>(())
         };
 
-        if let Err(e) = handle_embed().await {
+        if let Err(e) = handle_embed.await {
             eprintln!("/embed error: {}", e);
-            emit(&sender, EmbedEvent::Error(None)).await;
+            emit(&sender, EmbedEvent::Error(Some(e.to_string().into()))).await;
         }
     });
 
@@ -76,15 +76,21 @@ async fn query(
         let (sender, rx) = sse::channel(SSE_CHANNEL_BUFFER_SIZE);
 
         actix_rt::spawn(async move {
-            let mut conversation = Conversation::new(
-                data.into_inner(),
-                db.get_ref().clone(),
-                model.get_ref().clone(),
-                sender.clone(),
-            );
-            if let Err(e) = conversation.generate().await {
+            let result = async {
+                let mut conversation = Conversation::initiate(
+                    data.into_inner(),
+                    db.get_ref().clone(),
+                    model.get_ref().clone(),
+                    sender.clone(),
+                )
+                .await?;
+                conversation.generate().await?;
+
+                Ok::<(), anyhow::Error>(())
+            };
+            if let Err(e) = result.await {
                 eprintln!("/query error: {}", e);
-                emit(&sender, QueryEvent::Error(None)).await;
+                emit(&sender, QueryEvent::Error(Some(e.to_string().into()))).await;
             }
         });
 
