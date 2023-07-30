@@ -2,24 +2,30 @@
 use crate::{
     embeddings::{Embeddings, EmbeddingsModel},
     prelude::*,
+    utils::functions::clean_chunks,
 };
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+use rayon::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::io::Read;
+use std::{io::Read, time::Instant, ops::RangeInclusive, collections::HashSet};
 
 #[derive(Debug, Default, Serialize)]
 pub struct File {
     pub path: String,
     pub content: String,
-    pub length: usize,
 }
 
-impl ToString for File {
+#[derive(Debug, Default, Serialize)]
+pub struct FileChunk {
+    pub path: String,
+    pub chunk_content: String,
+}
+
+impl ToString for FileChunk {
     fn to_string(&self) -> String {
         format!(
-            "File path: {}\nFile length: {} bytes\nFile content: {}",
-            &self.path, &self.length, &self.content
+            "File path: {}\nFile content: {}",
+            &self.path, &self.chunk_content
         )
     }
 }
@@ -27,6 +33,7 @@ impl ToString for File {
 #[derive(Debug, Clone)]
 pub struct FileEmbeddings {
     pub path: String,
+    pub content: String,
     pub embeddings: Embeddings,
 }
 
@@ -39,7 +46,7 @@ pub struct RepositoryEmbeddings {
 #[derive(Serialize, Debug)]
 pub struct RepositoryFilePaths {
     pub repo_id: String,
-    pub file_paths: Vec<String>,
+    pub file_paths: HashSet<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -55,23 +62,27 @@ impl ToString for Repository {
     }
 }
 
-pub async fn embed_repo<M: EmbeddingsModel + Send + Sync>(
+pub fn embed_repo<M: EmbeddingsModel + Send + Sync>(
     repository: &Repository,
     files: Vec<File>,
     model: &M,
+    chunk_limit: RangeInclusive<usize>
 ) -> Result<RepositoryEmbeddings> {
-    let file_embeddings: Vec<FileEmbeddings> = files
+    let now = Instant::now();
+    let chunked_files = chunk_files(files, chunk_limit);
+    let file_embeddings: Vec<FileEmbeddings> = chunked_files
         .into_par_iter()
-        .filter_map(|file| {
-            let embed_content = file.to_string();
+        .filter_map(|file_chunk| {
+            let embed_content = file_chunk.to_string();
             let embeddings = model.embed(&embed_content).unwrap();
             Some(FileEmbeddings {
-                path: file.path,
+                path: file_chunk.path,
+                content: file_chunk.chunk_content,
                 embeddings,
             })
         })
         .collect();
-
+    println!("Time taken to embed: {}", now.elapsed().as_secs());
     Ok(RepositoryEmbeddings {
         repo_id: repository.to_string(),
         file_embeddings,
@@ -98,13 +109,11 @@ pub async fn fetch_repo_files(repository: &Repository) -> Result<Vec<File>> {
 
             if file.is_file() && should_index(&file_path) {
                 let mut content = String::new();
-                let length = content.len();
                 //Fails for non UTF-8 files
                 match file.read_to_string(&mut content) {
                     Ok(_) => Some(File {
                         path: file_path,
                         content,
-                        length,
                     }),
                     Err(_) => None,
                 }
@@ -116,21 +125,22 @@ pub async fn fetch_repo_files(repository: &Repository) -> Result<Vec<File>> {
     Ok(files)
 }
 
-pub async fn fetch_file_content(repository: &Repository, path: &str) -> Result<String> {
-    let Repository {
-        owner: repo_owner,
-        name: repo_name,
-        branch: repo_branch,
-    } = repository;
-    let url =
-        format!("https://raw.githubusercontent.com/{repo_owner}/{repo_name}/{repo_branch}/{path}");
-    let response = reqwest::get(url).await?;
-    if response.status() == reqwest::StatusCode::OK {
-        let content = response.text().await?;
-        Ok(content)
-    } else {
-        Err(anyhow::anyhow!("Unable to fetch file content"))
-    }
+fn chunk_files(files: Vec<File>, chunk_limit: RangeInclusive<usize>) -> Vec<FileChunk> {
+    let files: Vec<FileChunk> = files
+        .par_iter()
+        .flat_map(|file| {
+            let splitter = text_splitter::TextSplitter::default().with_trim_chunks(true);
+            let chunks: Vec<&str> = splitter
+                .chunks(&file.content, chunk_limit.clone())
+                .collect();
+            let cleaned_chunks: Vec<String> = clean_chunks(chunks);
+            cleaned_chunks.into_par_iter().map(|chunk| FileChunk {
+                path: file.path.clone(),
+                chunk_content: chunk,
+            })
+        })
+        .collect();
+    files
 }
 
 const IGNORED_EXTENSIONS: &[&str] = &[
@@ -230,30 +240,6 @@ mod tests {
         assert!(result.is_ok());
         let files = result.unwrap();
         assert!(!files.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_fetch_file_content() {
-        let repository = Repository {
-            owner: "open-sauced".to_string(),
-            name: "ai".to_string(),
-            branch: "beta".to_string(),
-        };
-        let path = "package.json";
-
-        let result = fetch_file_content(&repository, path).await;
-
-        // Assert that the function returns a Result containing the file content
-        assert!(result.is_ok());
-        let content = result.unwrap();
-        assert!(!content.is_empty());
-
-        let path = "Some_Invalid_File.example";
-
-        let result = fetch_file_content(&repository, path).await;
-
-        //Assert that the function returns Err for an invalid file path
-        assert!(result.is_err());
     }
 
     #[test]

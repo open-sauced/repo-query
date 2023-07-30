@@ -37,7 +37,7 @@ pub struct RelevantChunk {
 impl ToString for RelevantChunk {
     fn to_string(&self) -> String {
         format!(
-            "##Relevant file chunk##\nPath argument:{}\nRelevant content: {}",
+            "##File chunk##\nPath :{}\nChunk content: {}",
             self.path,
             self.content.trim()
         )

@@ -13,6 +13,5 @@ pub const CHAT_COMPLETION_MODEL: &str = "gpt-3.5-turbo";
 
 //Semantic search
 pub const MAX_FILES_COUNT: usize = 1000;
-pub const FILE_CHUNKER_CAPACITY_RANGE: RangeInclusive<usize> = 300..=400;
-pub const RELEVANT_FILES_LIMIT: usize = 3;
-pub const RELEVANT_CHUNKS_LIMIT: usize = 2;
+pub const FILE_CHUNKER_CAPACITY_RANGE: RangeInclusive<usize> = 800..=1000;
+pub const RELEVANT_CHUNKS_LIMIT: usize = 3;

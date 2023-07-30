@@ -3,7 +3,7 @@ mod data;
 mod prompts;
 
 use crate::{
-    constants::{RELEVANT_CHUNKS_LIMIT, RELEVANT_FILES_LIMIT},
+    constants::RELEVANT_CHUNKS_LIMIT,
     db::RepositoryEmbeddingsDB,
     embeddings::EmbeddingsModel,
     prelude::*,
@@ -129,7 +129,6 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                             &self.query.repository,
                                             self.model.as_ref(),
                                             self.db.as_ref(),
-                                            RELEVANT_FILES_LIMIT,
                                             RELEVANT_CHUNKS_LIMIT,
                                         )
                                         .await?;
@@ -159,6 +158,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                             query,
                                             &self.query.repository,
                                             self.model.as_ref(),
+                                            self.db.as_ref(),
                                             RELEVANT_CHUNKS_LIMIT,
                                         )
                                         .await?;

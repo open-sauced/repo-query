@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use super::RepositoryEmbeddingsDB;
 use crate::{
     constants::{EMBEDDINGS_DIMENSION, MAX_FILES_COUNT},
+    conversation::RelevantChunk,
     embeddings::Embeddings,
     github::{FileEmbeddings, Repository, RepositoryEmbeddings, RepositoryFilePaths},
     prelude::*,
@@ -11,7 +12,9 @@ use anyhow::Ok;
 use async_trait::async_trait;
 use qdrant_client::{
     prelude::*,
-    qdrant::{vectors_config::Config, ScrollPoints, VectorParams, VectorsConfig},
+    qdrant::{
+        vectors_config::Config, Condition, Filter, ScrollPoints, VectorParams, VectorsConfig,
+    },
 };
 use rayon::prelude::*;
 
@@ -44,9 +47,13 @@ impl RepositoryEmbeddingsDB for QdrantDB {
             .into_par_iter()
             .enumerate()
             .map(|file| {
-                let FileEmbeddings { path, embeddings } = file.1;
-                let payload: Payload = HashMap::from([("path", path.into())]).into();
-
+                let FileEmbeddings {
+                    path,
+                    embeddings,
+                    content,
+                } = file.1;
+                let payload: Payload =
+                    HashMap::from([("path", path.into()), ("content", content.into())]).into();
                 PointStruct::new(file.0 as u64, embeddings, payload)
             })
             .collect();
@@ -56,12 +63,12 @@ impl RepositoryEmbeddingsDB for QdrantDB {
         Ok(())
     }
 
-    async fn get_relevant_files(
+    async fn get_relevant_chunks_from_codebase(
         &self,
         repository: &Repository,
         query_embeddings: Embeddings,
         limit: usize,
-    ) -> Result<RepositoryFilePaths> {
+    ) -> Result<Vec<RelevantChunk>> {
         let search_response = self
             .client
             .search_points(&SearchPoints {
@@ -72,18 +79,18 @@ impl RepositoryEmbeddingsDB for QdrantDB {
                 ..Default::default()
             })
             .await?;
-        let paths: Vec<String> = search_response
+        let relevant_chunks: Vec<RelevantChunk> = search_response
             .result
             .into_iter()
-            .map(|point| point.payload["path"].to_string().replace('\"', ""))
+            .map(|point| RelevantChunk {
+                path: point.payload["path"].as_str().unwrap().to_string(),
+                content: point.payload["content"].as_str().unwrap().to_string(),
+            })
             .collect();
-        Ok(RepositoryFilePaths {
-            repo_id: repository.to_string(),
-            file_paths: paths,
-        })
+        Ok(relevant_chunks)
     }
 
-    async fn get_file_paths(&self, repository: &Repository) -> Result<RepositoryFilePaths> {
+    async fn get_paths(&self, repository: &Repository) -> Result<RepositoryFilePaths> {
         let scroll_reponse = self
             .client
             .scroll(&ScrollPoints {
@@ -100,8 +107,10 @@ impl RepositoryEmbeddingsDB for QdrantDB {
         let file_paths: Vec<String> = scroll_reponse
             .result
             .par_iter()
-            .map(|point| point.payload["path"].to_string().replace('\"', ""))
+            .map(|point| point.payload["path"].as_str().unwrap().to_string())
             .collect();
+        let file_paths = file_paths.into_iter().collect();
+        dbg!(&file_paths);
         Ok(RepositoryFilePaths {
             repo_id: repository.to_string(),
             file_paths,
@@ -110,6 +119,41 @@ impl RepositoryEmbeddingsDB for QdrantDB {
 
     async fn is_indexed(&self, repository: &Repository) -> Result<bool> {
         self.client.has_collection(repository.to_string()).await
+    }
+
+    async fn get_relevant_chunks_from_path(
+        &self,
+        repository: &Repository,
+        query_embeddings: Embeddings,
+        file_path: &str,
+        limit: usize,
+    ) -> Result<Vec<RelevantChunk>> {
+        dbg!(file_path);
+        let search_response = self
+            .client
+            .search_points(&SearchPoints {
+                collection_name: repository.to_string(),
+                vector: query_embeddings,
+                with_payload: Some(true.into()),
+                limit: limit as u64,
+                filter: Some(Filter::all([Condition::matches(
+                    "path",
+                    file_path.to_string(),
+                )])),
+                ..Default::default()
+            })
+            .await?;
+
+        dbg!(search_response.result.len());
+        let relevant_chunks: Vec<RelevantChunk> = search_response
+            .result
+            .into_iter()
+            .map(|point| RelevantChunk {
+                path: point.payload["path"].as_str().unwrap().to_string(),
+                content: point.payload["content"].as_str().unwrap().to_string(),
+            })
+            .collect();
+        Ok(relevant_chunks)
     }
 }
 

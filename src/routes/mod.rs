@@ -1,6 +1,6 @@
 #![allow(unused_must_use)]
 pub mod events;
-use crate::constants::SSE_CHANNEL_BUFFER_SIZE;
+use crate::constants::{SSE_CHANNEL_BUFFER_SIZE, FILE_CHUNKER_CAPACITY_RANGE};
 
 use crate::conversation::{Conversation, Query};
 use crate::github::{fetch_license_info, fetch_repo_files};
@@ -48,7 +48,7 @@ async fn embeddings(
                 }))),
             )
             .await;
-            let embeddings = embed_repo(&repository, files, model.get_ref().as_ref()).await?;
+            let embeddings = embed_repo(&repository, files, model.get_ref().as_ref(), FILE_CHUNKER_CAPACITY_RANGE)?;
 
             emit(&sender, EmbedEvent::SaveEmbeddings(None)).await;
             db.get_ref().insert_repo_embeddings(embeddings).await?;
