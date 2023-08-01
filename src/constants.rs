@@ -5,7 +5,7 @@ pub const EMBEDDINGS_DIMENSION: usize = 384;
 
 //Actix-web
 pub const SSE_CHANNEL_BUFFER_SIZE: usize = 1;
-pub const ACTIX_WEB_SERVER_PORT: usize = 3000;
+pub const HOME_ROUTE_REDIRECT_URL: &str = "https://opensauced.pizza";
 
 //OpenAI
 pub const CHAT_COMPLETION_TEMPERATURE: f64 = 0.7;
