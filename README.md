@@ -106,6 +106,7 @@ To run the project locally, there are a few prerequisites:
 - The [Rust toolchain](https://www.rust-lang.org/learn/get-started)
 - The [Onnx Runtime](https://onnxruntime.ai/docs/install/). Will be downloaded and installed automatically when building the project.
 - [Docker](https://docs.docker.com/engine/install/) to run the [QdrantDB](https://qdrant.tech/) instance.
+- `make` for easy automation and development workflow
 
 Once, the above requirements are satisfied, you can run the project like so:
 
@@ -131,6 +132,31 @@ Run the following command to install the dependencies and run the project on por
 cargo run --release
 ```
 This command will build and run the project with optimizations enabled(Highly recommended).
+
+## 🐳 Docker container
+
+The repo-query engine can also be run locally via a docker container and
+includes all the necessary dependencies.
+
+To build the container tagged as `open-sauced-repo-query:latest`, run:
+
+```
+make local-image
+```
+
+Then, you can start the repo-query service with:
+```
+docker run --env-file ./.env -p 3000:3000 open-sauced-repo-query
+```
+
+There's also a `docker-compose.yaml` file that can be used to start
+both qdrant and the repo-query engine together.
+
+To build the image and then start the services, run:
+
+```
+make up
+```
 
 ## Attributions
 
