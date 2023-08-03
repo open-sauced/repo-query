@@ -1,0 +1,128 @@
+name: Release repo-query
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  actions: read
+  packages: write # for publish to ghcr.io
+  id-token: write # for signing image
+
+jobs:
+  build:
+    name: Build and publish repo-query image
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_URI: ghcr.io/${{ github.repository }}
+      IMAGE_URI_TAG: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+    outputs:
+      image: ${{ env.IMAGE_URI }}
+      digest: ${{ steps.image_digest.outputs.IMAGE_DIGEST }}
+    steps:
+      - name: 👀 Checkout code
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # tag=v3
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: 🔐 Login to GitHub Container Registry
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🚧 Cross build image
+        run: |
+          #!/usr/bin/env bash
+
+          docker buildx build \
+            --tag=ghcr.io/${{ github.repository }}:${{ github.ref_name }} \
+            --platform=linux/amd64,linux/arm64 \
+            --push \
+            .
+
+      - name: 🏗️ Install crane
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: imjasonh/setup-crane@00c9e93efa4e1138c9a7a5c594acd6c75a2fbf0c # v0.3
+      - name: 📩 Output image digest
+        if: startsWith(github.ref, 'refs/tags/')
+        id: image_digest
+        run: echo "IMAGE_DIGEST=$(crane digest ${IMAGE_URI_TAG})" >> $GITHUB_OUTPUT
+
+  sign:
+    name: Sign image and generate sbom
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: ✅ Checkout code
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # tag=v3
+      - name: 🔐 Login to GitHub Container Registry
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: 📦 Run Trivy in fs mode to generate SBOM
+        uses: aquasecurity/trivy-action@e5f43133f6e8736992c9f3c1b3296e24b37e17f2 # master
+        with:
+          scan-type: 'fs'
+          format: 'spdx-json'
+          output: 'spdx.sbom.json'
+      - name: 🖋️ Install cosign
+        uses: sigstore/cosign-installer@dd6b2e2b610a11fd73dd187a43d57cc1394e35f9 # main
+      - name: 📝 Sign image and sbom
+        run: |
+          #!/usr/bin/env bash
+
+          set -euo pipefail
+          cosign sign -a git_sha=$GITHUB_SHA ${IMAGE_URI_DIGEST} --yes
+          cosign attach sbom --sbom spdx.sbom.json ${IMAGE_URI_DIGEST}
+          cosign sign -a git_sha=$GITHUB_SHA --attachment sbom ${IMAGE_URI_DIGEST} --yes
+        shell: bash
+        env:
+          IMAGE_URI_DIGEST: ${{ needs.build.outputs.image }}@${{ needs.build.outputs.digest }}
+
+  provenance:
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/')
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.6.0
+    with:
+      image: ${{ needs.build.outputs.image }}
+      digest: ${{ needs.build.outputs.digest }}
+      registry-username: ${{ github.actor }}
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  verify:
+    name: Verify image and provenance
+    runs-on: ubuntu-latest
+    needs: [build, sign, provenance]
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: 🔐 Login to GitHub Container Registry
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: 🖋️ Install cosign
+        uses: sigstore/cosign-installer@dd6b2e2b610a11fd73dd187a43d57cc1394e35f9 # main
+      - name: 👀 Install slsa-verifier
+        uses: slsa-framework/slsa-verifier/actions/installer@c9abffe4d2ab2ffa0b2ea9b2582b84164f390adc # v2.3.0
+      - name: 🔐 Verify image and provenance
+        run: |
+          #!/usr/bin/env bash
+
+          set -euo pipefail
+          cosign verify ${IMAGE_URI_DIGEST} \
+            --certificate-oidc-issuer ${GITHUB_ACITONS_OIDC_ISSUER} \
+            --certificate-identity ${COSIGN_KEYLESS_SIGNING_CERT_SUBJECT}
+          slsa-verifier verify-image \
+            --source-uri github.com/${{ github.repository }} ${IMAGE_URI_DIGEST}
+        shell: bash
+        env:
+          IMAGE_URI_DIGEST: ${{ needs.build.outputs.image }}@${{ needs.build.outputs.digest }}
+          GITHUB_ACITONS_OIDC_ISSUER: https://token.actions.githubusercontent.com
+          COSIGN_KEYLESS_SIGNING_CERT_SUBJECT: https://github.com/${{ github.repository }}/.github/workflows/release.yaml@${{ github.ref }}
