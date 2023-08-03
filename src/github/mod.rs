@@ -285,7 +285,7 @@ mod tests {
         };
 
         let license_info = fetch_license_info(&repository).await.unwrap_or_default();
-        assert_eq!(license_info.permissible, true);
+        assert!(license_info.permissible);
 
         //Permissible
         let repository = Repository {
@@ -295,7 +295,7 @@ mod tests {
         };
 
         let license_info = fetch_license_info(&repository).await.unwrap_or_default();
-        assert_eq!(license_info.permissible, true);
+        assert!(license_info.permissible);
 
         //Impermissible
         let repository = Repository {
@@ -305,6 +305,6 @@ mod tests {
         };
 
         let license_info = fetch_license_info(&repository).await.unwrap_or_default();
-        assert_eq!(license_info.permissible, false);
+        assert!(!license_info.permissible);
     }
 }

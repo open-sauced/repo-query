@@ -50,7 +50,9 @@ pub async fn search_file<M: EmbeddingsModel>(
     model: &M,
     chunks_limit: usize,
 ) -> Result<Vec<RelevantChunk>> {
-    let file_content = fetch_file_content(repository, path).await.unwrap_or_default();
+    let file_content = fetch_file_content(repository, path)
+        .await
+        .unwrap_or_default();
 
     let splitter = text_splitter::TextSplitter::default().with_trim_chunks(true);
 

@@ -1,0 +1,22 @@
+version: '3.1'
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+
+  repo-query:
+    image: open-sauced-repo-query:latest
+    environment:
+      # Consume env variables from a .env file found in the same directory
+      # as this docker-compose file. See ".env.example" for more details.
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      QDRANT_URL: "http://qdrant:6334"
+      RUST_LOG: "info"
+      WEBSERVER_PORT: ${WEBSERVER_PORT}
+    depends_on:
+      - qdrant
+    ports:
+      - "${WEBSERVER_PORT}:${WEBSERVER_PORT}"

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::RepositoryEmbeddingsDB;
 use crate::{
-    constants::{EMBEDDINGS_DIMENSION, MAX_FILES_COUNT},
+    constants::{EMBEDDINGS_DIMENSION, MAX_FILES_COUNT, QDRANT_URL_DEFAULT},
     embeddings::Embeddings,
     github::{FileEmbeddings, Repository, RepositoryEmbeddings, RepositoryFilePaths},
     prelude::*,
@@ -115,9 +115,14 @@ impl RepositoryEmbeddingsDB for QdrantDB {
 
 impl QdrantDB {
     pub fn initialize() -> Result<QdrantDB> {
-        let qdrant_url =
-            std::env::var("QDRANT_URL").unwrap_or(String::from("http://localhost:6334"));
-            dbg!(&qdrant_url);
+        let mut qdrant_url =
+            std::env::var("QDRANT_URL").unwrap_or(String::from(QDRANT_URL_DEFAULT));
+        dbg!(&qdrant_url);
+
+        if qdrant_url.is_empty() {
+            qdrant_url = QDRANT_URL_DEFAULT.to_string();
+        }
+
         let config = QdrantClientConfig::from_url(&qdrant_url);
         let client = QdrantClient::new(Some(config))?;
         Ok(QdrantDB { client })
