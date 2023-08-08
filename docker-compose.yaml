@@ -2,7 +2,7 @@ version: '3.1'
 
 services:
   chroma:
-    image: ghcr.io/chroma-core/chroma:0.4.5
+    image: ghcr.io/chroma-core/chroma:0.4.5 # Spins up a ChromaDB instance at port 8000
 
   repo-query:
     image: open-sauced-repo-query:latest
@@ -11,7 +11,7 @@ services:
       # as this docker-compose file. See ".env.example" for more details.
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       RUST_LOG: "info"
-      CHROMA_URL: "http://0.0.0.0:8000"
+      CHROMA_URL: "http://chroma:8000"
       WEBSERVER_PORT: ${WEBSERVER_PORT}
     depends_on:
       - chroma
