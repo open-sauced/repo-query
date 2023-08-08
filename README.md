@@ -115,6 +115,8 @@ Once, the above requirements are satisfied, you can run the project like so:
 The project requires the following environment variables to be set.
 * [`OPENAI_API_KEY`](https://platform.openai.com/account/api-keys). To authenticate requests to OpenAI. 
 
+* [`WEBSERVER_PORT`](https://github.com/open-sauced/repo-query/blob/alpha/.env.example). The port at which Repo-Query listens to requests. 
+
 ### Database setup
 
 Start Docker and run the following commands to spin-up a Docker container with a QdrantDB image.
@@ -122,11 +124,10 @@ Start Docker and run the following commands to spin-up a Docker container with a
 docker pull ghcr.io/chroma-core/chroma:0.4.5
 docker run -p 8000:8000 ghcr.io/chroma-core/chroma:0.4.5
 ```
-The database dashboard will be accessible at [localhost:6333/dashboard](http://localhost:6333/dashboard), the project communicates with the DB on port `6334`.
 
 ### Running the project
 
-Run the following command to install the dependencies and run the project on port `3000`.
+Run the following command to install the dependencies and run the project.
 
 ```
 cargo run --release

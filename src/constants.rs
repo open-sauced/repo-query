@@ -1,8 +1,5 @@
 use std::ops::RangeInclusive;
 
-// Env var defaults
-pub const WEBSERVER_PORT_DEFAULT: &str = "3000";
-
 //Actix-web
 pub const SSE_CHANNEL_BUFFER_SIZE: usize = 1;
 pub const HOME_ROUTE_REDIRECT_URL: &str = "https://opensauced.pizza";

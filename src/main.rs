@@ -10,7 +10,7 @@ use std::{path::Path, sync::Arc};
 
 use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
-use constants::{HOME_ROUTE_REDIRECT_URL, WEBSERVER_PORT_DEFAULT};
+use constants::HOME_ROUTE_REDIRECT_URL;
 use env_logger::Env;
 use tracing_actix_web::TracingLogger;
 
@@ -23,10 +23,7 @@ async fn main() -> std::io::Result<()> {
     let model: Arc<embeddings::Onnx> = Arc::new(embeddings::Onnx::new(Path::new("model")).unwrap());
     let db: Arc<db::ChromaDB> = Arc::new(db::ChromaDB::initialize().unwrap());
 
-    let mut port = std::env::var("WEBSERVER_PORT").unwrap_or(WEBSERVER_PORT_DEFAULT.into());
-    if port.is_empty() {
-        port = WEBSERVER_PORT_DEFAULT.to_string();
-    }
+    let port = std::env::var("WEBSERVER_PORT").expect("WEBSERVER_PORT not set");
     let port = port.parse::<u16>().expect("Invalid WEBSERVER_PORT");
 
     HttpServer::new(move || {
