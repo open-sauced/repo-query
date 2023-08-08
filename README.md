@@ -105,7 +105,7 @@ To run the project locally, there are a few prerequisites:
 
 - The [Rust toolchain](https://www.rust-lang.org/learn/get-started)
 - The [Onnx Runtime](https://onnxruntime.ai/docs/install/). Will be downloaded and installed automatically when building the project.
-- [Docker](https://docs.docker.com/engine/install/) to run the [QdrantDB](https://qdrant.tech/) instance.
+- [Docker](https://docs.docker.com/engine/install/) to run the [ChromaDB](https://www.trychroma.com/) instance.
 - `make` for easy automation and development workflow
 
 Once, the above requirements are satisfied, you can run the project like so:
@@ -119,8 +119,8 @@ The project requires the following environment variables to be set.
 
 Start Docker and run the following commands to spin-up a Docker container with a QdrantDB image.
 ```
-docker pull qdrant/qdrant
-docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant
+docker pull ghcr.io/chroma-core/chroma:0.4.5
+docker run -p 8000:8000 ghcr.io/chroma-core/chroma:0.4.5
 ```
 The database dashboard will be accessible at [localhost:6333/dashboard](http://localhost:6333/dashboard), the project communicates with the DB on port `6334`.
 
