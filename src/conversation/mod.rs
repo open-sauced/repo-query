@@ -54,7 +54,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                 ChatCompletionMessage {
                     name: None,
                     function_call: None,
-                    role: MessageRole::system,
+                    role: MessageRole::user,
                     content: system_message(),
                 },
                 ChatCompletionMessage {
@@ -80,7 +80,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
         self.messages[0] = ChatCompletionMessage {
             name: None,
             function_call: None,
-            role: MessageRole::system,
+            role: MessageRole::user,
             content: answer_generation_prompt(),
         }
     }

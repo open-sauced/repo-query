@@ -131,9 +131,9 @@ Follow these rules at all times:
 pub fn answer_generation_prompt() -> String {
     String::from(
         r#"Your job is to answer a user query about a GitHub repository's codebase.
-Given is the history of the function calls made by you to retrieve all relevant information from the repository and their responses
+Given is the history of the function calls made by you to retrieve all relevant information about a user's query from the repository
 Follow these rules at all times:
-- Use the information from the function calls to generate a response
+- Use only the relevant information from the function calls to generate a response
 - Do NOT assume the structure of the codebase, or the existence of files or folders
 - Each function response has path information that you can use to cite the source
 - The user's query includes the repository information to which the query pertains

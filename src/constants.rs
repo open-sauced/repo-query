@@ -2,10 +2,6 @@ use std::ops::RangeInclusive;
 
 // Env var defaults
 pub const WEBSERVER_PORT_DEFAULT: &str = "3000";
-pub const QDRANT_URL_DEFAULT: &str = "http://localhost:6334";
-
-//Embeddings
-pub const EMBEDDINGS_DIMENSION: usize = 384;
 
 //Actix-web
 pub const SSE_CHANNEL_BUFFER_SIZE: usize = 1;

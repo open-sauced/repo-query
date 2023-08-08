@@ -21,7 +21,7 @@ async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 
     let model: Arc<embeddings::Onnx> = Arc::new(embeddings::Onnx::new(Path::new("model")).unwrap());
-    let db: Arc<db::QdrantDB> = Arc::new(db::QdrantDB::initialize().unwrap());
+    let db: Arc<db::ChromaDB> = Arc::new(db::ChromaDB::initialize().unwrap());
 
     let mut port = std::env::var("WEBSERVER_PORT").unwrap_or(WEBSERVER_PORT_DEFAULT.into());
     if port.is_empty() {

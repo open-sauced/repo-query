@@ -1,11 +1,14 @@
 #![allow(unused_must_use)]
 pub mod events;
-use crate::constants::SSE_CHANNEL_BUFFER_SIZE;
+use crate::{
+    constants::SSE_CHANNEL_BUFFER_SIZE,
+    conversation::{Conversation, Query},
+    db::{ChromaDB, RepositoryEmbeddingsDB},
+    embeddings::Onnx,
+    github::{embed_repo, fetch_license_info, fetch_repo_files, Repository},
+    routes::events::QueryEvent,
+};
 
-use crate::conversation::{Conversation, Query};
-use crate::github::{fetch_license_info, fetch_repo_files};
-use crate::routes::events::QueryEvent;
-use crate::{db::RepositoryEmbeddingsDB, github::Repository};
 use actix_web::web::Query as ActixQuery;
 use actix_web::HttpResponse;
 use actix_web::{
@@ -18,13 +21,12 @@ use actix_web_lab::sse;
 use serde_json::json;
 use std::sync::Arc;
 
-use crate::{db::QdrantDB, embeddings::Onnx, github::embed_repo};
 use events::{emit, EmbedEvent};
 
 #[post("/embed")]
 async fn embeddings(
     data: Json<Repository>,
-    db: web::Data<Arc<QdrantDB>>,
+    db: web::Data<Arc<ChromaDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> Result<impl Responder> {
     let license_info = fetch_license_info(&data).await.map_err(ErrorBadRequest)?;
@@ -51,7 +53,7 @@ async fn embeddings(
             let embeddings = embed_repo(&repository, files, model.get_ref().as_ref()).await?;
 
             emit(&sender, EmbedEvent::SaveEmbeddings(None)).await;
-            db.get_ref().insert_repo_embeddings(embeddings).await?;
+            db.get_ref().insert_repo_embeddings(embeddings)?;
 
             emit(&sender, EmbedEvent::Done(None)).await;
             Ok::<(), anyhow::Error>(())
@@ -69,10 +71,10 @@ async fn embeddings(
 #[post("/query")]
 async fn query(
     data: Json<Query>,
-    db: web::Data<Arc<QdrantDB>>,
+    db: web::Data<Arc<ChromaDB>>,
     model: web::Data<Arc<Onnx>>,
 ) -> Result<impl Responder> {
-    if db.is_indexed(&data.repository).await.unwrap_or_default() {
+    if db.is_indexed(&data.repository).unwrap_or_default() {
         let (sender, rx) = sse::channel(SSE_CHANNEL_BUFFER_SIZE);
 
         actix_rt::spawn(async move {
@@ -103,9 +105,9 @@ async fn query(
 #[get("/collection")]
 async fn repo(
     data: ActixQuery<Repository>,
-    db: web::Data<Arc<QdrantDB>>,
+    db: web::Data<Arc<ChromaDB>>,
 ) -> Result<impl Responder> {
-    let is_indexed = db.is_indexed(&data.into_inner()).await.unwrap_or_default();
+    let is_indexed = db.is_indexed(&data.into_inner()).unwrap_or_default();
 
     if is_indexed {
         Ok(HttpResponse::Ok())

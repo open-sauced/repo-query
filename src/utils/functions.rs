@@ -31,8 +31,7 @@ pub async fn search_codebase<M: EmbeddingsModel, D: RepositoryEmbeddingsDB>(
 ) -> Result<Vec<RelevantChunk>> {
     let query_embeddings = model.embed(query)?;
     let relevant_files = db
-        .get_relevant_files(repository, query_embeddings, files_limit)
-        .await?
+        .get_relevant_file_paths(repository, query_embeddings, files_limit)?
         .file_paths;
     let mut relevant_chunks: Vec<RelevantChunk> = Vec::new();
     for path in relevant_files {
@@ -88,7 +87,7 @@ pub async fn search_path<D: RepositoryEmbeddingsDB>(
     db: &D,
     limit: usize,
 ) -> Result<Vec<String>> {
-    let list = db.get_file_paths(repository).await?;
+    let list = db.get_file_paths(repository)?;
     let file_paths: Vec<&str> = list.file_paths.iter().map(String::as_ref).collect();
     let response: Vec<(&str, f32)> =
         rust_fuzzy_search::fuzzy_search_best_n(path, &file_paths, limit);
