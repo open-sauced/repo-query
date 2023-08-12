@@ -5,18 +5,11 @@ use crate::{
     conversation::{Conversation, Query},
     db::{ChromaDB, RepositoryEmbeddingsDB},
     embeddings::Onnx,
-    github::{embed_repo, fetch_license_info, fetch_repo_files, Repository},
+    github::{fetch_repo_files, Repository, embed_repo, fetch_license_info},
     routes::events::QueryEvent,
 };
 
-use actix_web::web::Query as ActixQuery;
-use actix_web::HttpResponse;
-use actix_web::{
-    error::{ErrorBadRequest, ErrorForbidden, ErrorNotFound},
-    get, post,
-    web::{self, Json},
-    Responder, Result,
-};
+use actix_web::{web::{Query as ActixQuery, self, Json}, error::{ErrorForbidden, ErrorBadRequest, ErrorNotFound}, HttpResponse, get, post, Responder, Result};
 use actix_web_lab::sse;
 use serde_json::json;
 use std::sync::Arc;
@@ -50,7 +43,7 @@ async fn embeddings(
                 }))),
             )
             .await;
-            let embeddings = embed_repo(&repository, files, model.get_ref().as_ref()).await?;
+            let embeddings = embed_repo(&repository, files, model.get_ref().as_ref(), &sender).await?;
 
             emit(&sender, EmbedEvent::SaveEmbeddings(None)).await;
             db.get_ref().insert_repo_embeddings(embeddings)?;

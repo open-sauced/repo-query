@@ -2,11 +2,15 @@
 use crate::{
     embeddings::{Embeddings, EmbeddingsModel},
     prelude::*,
+    routes::events::{emit, EmbedEvent},
 };
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+use actix_web_lab::sse::Sender;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::io::Read;
+use std::{
+    io::Read,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 #[derive(Debug, Default, Serialize)]
 pub struct File {
@@ -59,18 +63,33 @@ pub async fn embed_repo<M: EmbeddingsModel + Send + Sync>(
     repository: &Repository,
     files: Vec<File>,
     model: &M,
+    sender: &Sender,
 ) -> Result<RepositoryEmbeddings> {
-    let file_embeddings: Vec<FileEmbeddings> = files
-        .into_par_iter()
-        .filter_map(|file| {
-            let embed_content = file.to_string();
-            let embeddings = model.embed(&embed_content).unwrap();
-            Some(FileEmbeddings {
-                path: file.path,
-                embeddings,
-            })
-        })
-        .collect();
+    let files_count = files.len();
+    let embedded_files_count = AtomicUsize::new(0);
+    let previous_progress = AtomicUsize::new(0);
+
+    let mut file_embeddings = Vec::new();
+    for file in files {
+        let embed_content = file.to_string();
+        let embeddings = model.embed(&embed_content).unwrap();
+        let embeddings = FileEmbeddings {
+            path: file.path,
+            embeddings,
+        };
+        file_embeddings.push(embeddings);
+        let current_embedded_count = embedded_files_count.fetch_add(1, Ordering::Relaxed);
+        let progress = (current_embedded_count * 100) / files_count;
+        let previous_progress_value = previous_progress.load(Ordering::Relaxed);
+        if progress % 10 == 0 && progress != previous_progress_value {
+            previous_progress.store(progress, Ordering::Relaxed);
+            emit(
+                &sender,
+                EmbedEvent::EmbedRepo(Some(json!({ "progress": progress }))),
+            )
+            .await;
+        }
+    }
 
     Ok(RepositoryEmbeddings {
         repo_id: repository.to_string(),
