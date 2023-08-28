@@ -1354,7 +1354,7 @@ dependencies = [
  "futures-util",
  "http",
  "hyper",
- "rustls",
+ "rustls 0.21.6",
  "tokio",
  "tokio-rustls",
 ]
@@ -1679,6 +1679,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "minreq"
+version = "2.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3de406eeb24aba36ed3829532fa01649129677186b44a49debec0ec574ca7da7"
+dependencies = [
+ "log",
+ "once_cell",
+ "rustls 0.20.9",
+ "serde",
+ "serde_json",
+ "webpki",
+ "webpki-roots 0.22.6",
+]
+
+[[package]]
 name = "mio"
 version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1869,14 +1884,13 @@ dependencies = [
 
 [[package]]
 name = "openai-api-rs"
-version = "0.1.15"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecc9e31347d94db4fa54ef5b272c97a039b126e07efa9c54dad33ca39f1b637f"
+checksum = "ee6d8597b2befe1afc4c251d88547bb99bceac796f428fc98c4b5047d76e1317"
 dependencies = [
- "reqwest",
+ "minreq",
  "serde",
  "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -2264,7 +2278,7 @@ dependencies = [
  "once_cell",
  "percent-encoding",
  "pin-project-lite",
- "rustls",
+ "rustls 0.21.6",
  "rustls-pemfile",
  "serde",
  "serde_json",
@@ -2330,6 +2344,18 @@ dependencies = [
  "libc",
  "linux-raw-sys",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "rustls"
+version = "0.20.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b80e3dec595989ea8510028f30c408a4630db12c9cbb8de34203b89d6577e99"
+dependencies = [
+ "log",
+ "ring",
+ "sct",
+ "webpki",
 ]
 
 [[package]]
@@ -2833,7 +2859,7 @@ version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c28327cf380ac148141087fbfb9de9d7bd4e84ab5d2c28fbc911d753de8a7081"
 dependencies = [
- "rustls",
+ "rustls 0.21.6",
  "tokio",
 ]
 
@@ -3046,7 +3072,7 @@ dependencies = [
  "base64 0.21.2",
  "log",
  "once_cell",
- "rustls",
+ "rustls 0.21.6",
  "rustls-webpki 0.100.2",
  "url",
  "webpki-roots 0.23.1",
@@ -3212,6 +3238,25 @@ checksum = "9b85cbef8c220a6abc02aefd892dfc0fc23afb1c6a426316ec33253a3877249b"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "webpki"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f095d78192e208183081cc07bc5515ef55216397af48b873e5edcd72637fa1bd"
+dependencies = [
+ "ring",
+ "untrusted",
+]
+
+[[package]]
+name = "webpki-roots"
+version = "0.22.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6c71e40d7d2c34a5106301fb632274ca37242cd0c9d3e64dbece371a40a2d87"
+dependencies = [
+ "webpki",
 ]
 
 [[package]]
