@@ -47,7 +47,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
         sender: Sender,
     ) -> Result<Self> {
         emit(&sender, QueryEvent::ProcessQuery(None)).await;
-        query.query = sanitize_query(&query.query).await?;
+        query.query = sanitize_query(&query.query)?;
         Ok(Self {
             client: Client::new(env::var("OPENAI_API_KEY").unwrap()),
             messages: vec![
@@ -85,8 +85,8 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
         }
     }
 
-    async fn send_request(&self, request: ChatCompletionRequest) -> Result<ChatCompletionResponse> {
-        Ok(self.client.chat_completion(request).await?)
+    fn send_request(&self, request: ChatCompletionRequest) -> Result<ChatCompletionResponse> {
+        Ok(self.client.chat_completion(request)?)
     }
 
     pub async fn generate(&mut self) -> Result<()> {
@@ -95,7 +95,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
             //Generate a request with the message history and functions
             let request = generate_completion_request(self.messages.clone(), "auto");
 
-            match self.send_request(request).await {
+            match self.send_request(request) {
                 Ok(response) => {
                     match response.choices[0].finish_reason {
                         FinishReason::function_call => {
@@ -203,7 +203,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                         );
                                         emit(&self.sender, QueryEvent::GenerateResponse(None))
                                             .await;
-                                        let response = match self.send_request(request).await {
+                                        let response = match self.send_request(request) {
                                             Ok(response) => response,
                                             Err(e) => {
                                                 dbg!(e.to_string());
@@ -253,7 +253,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
     }
 }
 
-async fn sanitize_query(query: &str) -> Result<String> {
+fn sanitize_query(query: &str) -> Result<String> {
     let message = ChatCompletionMessage {
         name: None,
         function_call: None,
@@ -262,7 +262,7 @@ async fn sanitize_query(query: &str) -> Result<String> {
     };
     let client = Client::new(env::var("OPENAI_API_KEY")?);
     let request = generate_completion_request(vec![message], "none");
-    let response = client.chat_completion(request).await?;
+    let response = client.chat_completion(request)?;
     if let FinishReason::stop = response.choices[0].finish_reason {
         let sanitized_query = response.choices[0]
             .message
