@@ -22,17 +22,24 @@
 ## 🔎 The Project
 RepoQuery is an early-beta project, that uses recursive [OpenAI function calling](https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions) paired with semantic search using [multi-qa-MiniLM-L6-cos-v1](https://huggingface.co/rawsh/multi-qa-MiniLM-distill-onnx-L6-cos-v1/blob/main/onnx/model_quantized.onnx) to index and answer user queries about public GitHub repositories.
 
-##  📬 Service Endpoints
+## 📬 Service Endpoints
 
 > **Note:**
-Since the service returns responses as SSEs, a REST client like Postman is recommended. Download it [here](https://www.postman.com/downloads/). The Postman web client doesn't support requests to `localhost`.
+> Since the service returns responses as SSEs, a REST client like Postman is recommended. Download it [here](https://www.postman.com/downloads/). The Postman web client doesn't support requests to `localhost`.
 
 [![Run in Postman](https://run.pstmn.io/button.svg)](https://app.getpostman.com/run-collection/18073744-276b793e-f5ec-418f-ba0a-9dff94af543e?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D18073744-276b793e-f5ec-418f-ba0a-9dff94af543e%26entityType%3Dcollection%26workspaceId%3D8d8a1363-ad0a-45ad-b036-ef6a37e44ef8)
 
-### 1. `POST /embed`
-To generate and store embeddings for a GitHub repository.
+| Endpoint             | Method | Description                                   |
+|----------------------|--------|-----------------------------------------------|
+| `/`                  | GET    | Redirects to the configured [redirect URL](https://github.com/open-sauced/repo-query/blob/afc4d19068e7c84a2566dae9598f1500f1191705/src/constants.rs#L12).          |
+| `/embed`             | POST   | Generate and store embeddings for a GitHub repository.          |
+| `/query`             | POST   | Perform a query on the API with a specific question related to a repository. |
+| `/collection`        | GET    | Check if a repository has been indexed.      |
+
+### 1. `/embed`
 
 #### Parameters
+
 The parameters are passed as a JSON object in the request body:
 
 - `owner` (string, required): The owner of the repository.
@@ -40,9 +47,11 @@ The parameters are passed as a JSON object in the request body:
 - `branch` (string, required): The name of the branch.
 
 #### Response
-The request is processed by the server and responses are sent as [Server-sent events(SSE)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events). The event stream will contain the following events with optional data. https://github.com/open-sauced/repo-query/blob/f2f415a4fa9c02d4530624fd7bac2105eea1a77c/src/routes/events.rs#L14-L20
+
+The request is processed by the server and responses are sent as [Server-sent events(SSE)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events). The event stream will contain [events](https://github.com/open-sauced/repo-query/blob/afc4d19068e7c84a2566dae9598f1500f1191705/src/routes/events.rs#L14-L21) with optional data.
 
 #### Example
+
 ```bash
 curl --location 'localhost:3000/embed' \
 --header 'Content-Type: application/json' \
@@ -53,10 +62,10 @@ curl --location 'localhost:3000/embed' \
 }'
 ```
 
-### 2. `POST /query`
-To perform a query on the API with a specific question related to a repository.
+### 2. `/query`
 
 #### Parameters
+
 The parameters are passed as a JSON object in the request body:
 
 - `query` (string, required): The question or query you want to ask.
@@ -66,10 +75,11 @@ The parameters are passed as a JSON object in the request body:
   - `branch` (string, required): The name of the branch.
 
 #### Response
-The request is processed by the server and responses are sent as [Server-sent events(SSE)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events). The event stream will contain the following events with optional data. https://github.com/open-sauced/repo-query/blob/f2f415a4fa9c02d4530624fd7bac2105eea1a77c/src/routes/events.rs#L22-L29
 
+The request is processed by the server and responses are sent as [Server-sent events(SSE)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events). The event stream will contain [events](https://github.com/open-sauced/repo-query/blob/afc4d19068e7c84a2566dae9598f1500f1191705/src/routes/events.rs#L23-L32) with optional data.
 
 #### Example
+
 ```bash
 curl --location 'localhost:3000/query' \
 --header 'Content-Type: application/json' \
@@ -83,18 +93,20 @@ curl --location 'localhost:3000/query' \
 }'
 ```
 
-### 3. `GET /collection`
-To check if a repository has been indexed.
+### 3. `/collection`
 
 #### Parameters
+
 - `owner` (string, required): The owner of the repository.
 - `name` (string, required): The name of the repository.
 - `branch` (string, required): The name of the branch.
 
 #### Response
+
 This endpoint returns an `OK` status code if the repository has been indexed by the service.
 
 #### Example
+
 ```bash
 curl --location 'localhost:3000/embed?owner=open-sauced&name=ai&branch=beta'
 ```
