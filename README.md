@@ -11,8 +11,9 @@
     <img src="https://img.shields.io/twitter/follow/saucedopen?label=Follow&style=social" alt="Twitter">
   </a>
 </p>
+  
+![263793091-872fbaf0-c33f-4c4f-a86e-5bd7f5b4dad7](https://github.com/open-sauced/repo-query/assets/46051506/82d1bf17-9d0e-42f8-b346-c402d269cbfa)
 
-<img alt="Open Sauced" src="https://user-images.githubusercontent.com/46051506/255266242-0b94b779-3020-455e-8a26-d3ed8e292214.gif" width="600px">
 
 
 <p><h3>A REST service to answer user-queries about public GitHub repositories</h3></p>
