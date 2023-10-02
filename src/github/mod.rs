@@ -3,9 +3,7 @@ use crate::{
     embeddings::{Embeddings, EmbeddingsModel},
     prelude::*,
 };
-use rayon::prelude::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
-};
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::io::Read;

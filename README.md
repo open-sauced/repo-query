@@ -21,7 +21,7 @@
 </div>
 
 ## 🔎 The Project
-RepoQuery is an early-beta project, that uses recursive [OpenAI function calling](https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions) paired with semantic search using [multi-qa-MiniLM-L6-cos-v1](https://huggingface.co/rawsh/multi-qa-MiniLM-distill-onnx-L6-cos-v1/blob/main/onnx/model_quantized.onnx) to index and answer user queries about public GitHub repositories.
+RepoQuery is an early-beta project, that uses recursive [OpenAI function calling](https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions) paired with semantic search using [BAAI/bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5) to index and answer user queries about public GitHub repositories.
 
 ## 📬 Service Endpoints
 
@@ -173,16 +173,15 @@ make up
 
 ## Attributions
 
-https://sbert.net for https://huggingface.co/sentence-transformers/multi-qa-MiniLM-L6-cos-v1.
+[baai.ac.cn](https://www.baai.ac.cn/english.html) for [BAAI/bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5).
 ```
-@inproceedings{reimers-2020-multilingual-sentence-bert,
-  title = "Making Monolingual Sentence Embeddings Multilingual using Knowledge Distillation",
-  author = "Reimers, Nils and Gurevych, Iryna",
-  booktitle = "Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing",
-  month = "11",
-  year = "2020",
-  publisher = "Association for Computational Linguistics",
-  url = "https://arxiv.org/abs/2004.09813",
+@misc{bge_embedding,
+      title={C-Pack: Packaged Resources To Advance General Chinese Embedding}, 
+      author={Shitao Xiao and Zheng Liu and Peitian Zhang and Niklas Muennighoff},
+      year={2023},
+      eprint={2309.07597},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
 }
 ```
 
