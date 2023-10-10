@@ -1,6 +1,6 @@
 use openai_api_rs::v1::chat_completion::{
     ChatCompletionMessage, ChatCompletionRequest, Function as F, FunctionParameters,
-    JSONSchemaDefine, JSONSchemaType,
+    JSONSchemaDefine, JSONSchemaType, FunctionCallType,
 };
 use std::collections::HashMap;
 
@@ -15,13 +15,14 @@ use crate::{
 // https://bloop.ai/
 pub fn generate_completion_request(
     messages: Vec<ChatCompletionMessage>,
-    function_call: &str,
+    function_call: FunctionCallType,
 ) -> ChatCompletionRequest {
+
     ChatCompletionRequest {
         model: CHAT_COMPLETION_MODEL.into(),
         messages,
         functions: Some(functions()),
-        function_call: Some(function_call.into()),
+        function_call: Some(function_call),
         temperature: Some(CHAT_COMPLETION_TEMPERATURE),
         top_p: None,
         n: None,
