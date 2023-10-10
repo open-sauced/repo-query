@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use fastembed::{EmbeddingBase, FlagEmbedding};
+use fastembed::{EmbeddingBase, FlagEmbedding, InitOptions};
 
 use super::{Embeddings, EmbeddingsModel};
 
@@ -9,7 +9,10 @@ pub struct Fastembed {
 
 impl Fastembed {
     pub fn try_new() -> Result<Self> {
-        let model = FlagEmbedding::try_new(Default::default())?;
+        let model = FlagEmbedding::try_new(InitOptions {
+            model_name: fastembed::EmbeddingModel::AllMiniLML6V2,
+            ..Default::default()
+        })?;
         Ok(Self { model })
     }
 }
