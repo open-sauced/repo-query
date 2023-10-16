@@ -1722,9 +1722,9 @@ dependencies = [
 
 [[package]]
 name = "openai-api-rs"
-version = "1.0.1"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee6d8597b2befe1afc4c251d88547bb99bceac796f428fc98c4b5047d76e1317"
+checksum = "eeab072070ad2fdba1b1f1a7de48d8a499871e5777bc855fcf81e9f8b2ef7a40"
 dependencies = [
  "minreq",
  "serde",
