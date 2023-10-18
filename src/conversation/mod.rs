@@ -93,7 +93,8 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
         #[allow(unused_labels)]
         'conversation: loop {
             //Generate a request with the message history and functions
-            let request = generate_completion_request(self.messages.clone(), FunctionCallType::Auto);
+            let request =
+                generate_completion_request(self.messages.clone(), FunctionCallType::Auto);
 
             match self.send_request(request) {
                 Ok(response) => {

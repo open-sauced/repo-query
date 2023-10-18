@@ -1,6 +1,6 @@
 use openai_api_rs::v1::chat_completion::{
-    ChatCompletionMessage, ChatCompletionRequest, Function as F, FunctionParameters,
-    JSONSchemaDefine, JSONSchemaType, FunctionCallType,
+    ChatCompletionMessage, ChatCompletionRequest, Function as F, FunctionCallType,
+    FunctionParameters, JSONSchemaDefine, JSONSchemaType,
 };
 use std::collections::HashMap;
 
@@ -17,23 +17,10 @@ pub fn generate_completion_request(
     messages: Vec<ChatCompletionMessage>,
     function_call: FunctionCallType,
 ) -> ChatCompletionRequest {
-
-    ChatCompletionRequest {
-        model: CHAT_COMPLETION_MODEL.into(),
-        messages,
-        functions: Some(functions()),
-        function_call: Some(function_call),
-        temperature: Some(CHAT_COMPLETION_TEMPERATURE),
-        top_p: None,
-        n: None,
-        stream: None,
-        stop: None,
-        max_tokens: None,
-        presence_penalty: None,
-        frequency_penalty: None,
-        logit_bias: None,
-        user: None,
-    }
+    ChatCompletionRequest::new(CHAT_COMPLETION_MODEL.to_string(), messages)
+        .functions(functions())
+        .function_call(function_call)
+        .temperature(CHAT_COMPLETION_TEMPERATURE)
 }
 
 pub fn functions() -> Vec<F> {
