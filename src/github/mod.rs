@@ -3,7 +3,7 @@ use crate::{
     embeddings::{Embeddings, EmbeddingsModel},
     prelude::*,
 };
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::io::Read;
@@ -60,15 +60,16 @@ pub async fn embed_repo<M: EmbeddingsModel + Send + Sync>(
     files: Vec<File>,
     model: &M,
 ) -> Result<RepositoryEmbeddings> {
-    let file_embeddings: Vec<FileEmbeddings> = files
+    let content: Vec<String> = files.par_iter().map(|file| file.content.clone()).collect();
+
+    let embeddings: Vec<Embeddings> = model.embed(content)?;
+
+    let file_embeddings: Vec<FileEmbeddings> = embeddings
         .into_par_iter()
-        .filter_map(|file| {
-            let embed_content = file.to_string();
-            let embeddings = model.embed(&embed_content).unwrap();
-            Some(FileEmbeddings {
-                path: file.path,
-                embeddings,
-            })
+        .zip(files.into_par_iter())
+        .map(|(embeddings, file)| FileEmbeddings {
+            path: file.path,
+            embeddings,
         })
         .collect();
 

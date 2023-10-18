@@ -12,7 +12,7 @@
 # remote code execution vulnerabilities.
 #
 # Uses the bullseye-slim debian image per the rust recommendation.
-FROM --platform=$TARGETPLATFORM rust:1.71-slim-bullseye AS builder
+FROM --platform=$TARGETPLATFORM rust:1.73-slim-bullseye AS builder
 
 ARG TARGETPLATFORM
 

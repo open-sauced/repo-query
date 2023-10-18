@@ -9,7 +9,6 @@ use crate::{
     github::{fetch_file_content, Repository},
     prelude::*,
 };
-use ndarray::ArrayView1;
 use openai_api_rs::v1::chat_completion::{ChatCompletionMessage, MessageRole};
 use rayon::prelude::*;
 
@@ -29,7 +28,7 @@ pub async fn search_codebase<M: EmbeddingsModel, D: RepositoryEmbeddingsDB>(
     files_limit: usize,
     chunks_limit: usize,
 ) -> Result<Vec<RelevantChunk>> {
-    let query_embeddings = model.embed(query)?;
+    let query_embeddings = model.query_embed(query)?;
     let relevant_files = db
         .get_relevant_files(repository, query_embeddings, files_limit)
         .await?
@@ -61,12 +60,9 @@ pub async fn search_file<M: EmbeddingsModel>(
         .collect();
 
     let cleaned_chunks: Vec<String> = clean_chunks(chunks);
-    let chunks_embeddings: Vec<Embeddings> = cleaned_chunks
-        .iter()
-        .map(|chunk| model.embed(chunk).unwrap())
-        .collect();
+    let chunks_embeddings: Vec<Embeddings> = model.embed(cleaned_chunks.clone())?;
 
-    let query_embeddings = model.embed(query)?;
+    let query_embeddings = model.query_embed(query)?;
 
     let similarities: Vec<f32> = similarity_score(chunks_embeddings, query_embeddings);
 
@@ -143,12 +139,7 @@ fn clean_chunks(chunks: Vec<&str>) -> Vec<String> {
 fn similarity_score(files_embeddings: Vec<Embeddings>, query_embeddings: Embeddings) -> Vec<f32> {
     files_embeddings
         .par_iter()
-        .map(|embedding| {
-            cosine_similarity(
-                ArrayView1::from(&query_embeddings),
-                ArrayView1::from(embedding),
-            )
-        })
+        .map(|embedding| cosine_similarity(&query_embeddings, embedding))
         .collect()
 }
 

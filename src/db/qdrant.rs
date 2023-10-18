@@ -117,7 +117,6 @@ impl QdrantDB {
     pub fn initialize() -> Result<QdrantDB> {
         let mut qdrant_url =
             std::env::var("QDRANT_URL").unwrap_or(String::from(QDRANT_URL_DEFAULT));
-        dbg!(&qdrant_url);
 
         if qdrant_url.is_empty() {
             qdrant_url = QDRANT_URL_DEFAULT.to_string();

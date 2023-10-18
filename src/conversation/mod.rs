@@ -11,7 +11,7 @@ use crate::{
 };
 use actix_web_lab::sse::Sender;
 pub use data::*;
-use openai_api_rs::v1::chat_completion::FinishReason;
+use openai_api_rs::v1::chat_completion::{FinishReason, FunctionCallType};
 use openai_api_rs::v1::{
     api::Client,
     chat_completion::{
@@ -93,7 +93,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
         #[allow(unused_labels)]
         'conversation: loop {
             //Generate a request with the message history and functions
-            let request = generate_completion_request(self.messages.clone(), "auto");
+            let request = generate_completion_request(self.messages.clone(), FunctionCallType::Auto);
 
             match self.send_request(request) {
                 Ok(response) => {
@@ -199,7 +199,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                                         //Generate a request with the message history and no functions
                                         let request = generate_completion_request(
                                             self.messages.clone(),
-                                            "none",
+                                            FunctionCallType::None,
                                         );
                                         emit(&self.sender, QueryEvent::GenerateResponse(None))
                                             .await;
@@ -261,7 +261,7 @@ fn sanitize_query(query: &str) -> Result<String> {
         content: sanitize_query_prompt(query),
     };
     let client = Client::new(env::var("OPENAI_API_KEY")?);
-    let request = generate_completion_request(vec![message], "none");
+    let request = generate_completion_request(vec![message], FunctionCallType::None);
     let response = client.chat_completion(request)?;
     if let FinishReason::stop = response.choices[0].finish_reason {
         let sanitized_query = response.choices[0]

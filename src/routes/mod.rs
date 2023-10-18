@@ -18,14 +18,14 @@ use actix_web_lab::sse;
 use serde_json::json;
 use std::sync::Arc;
 
-use crate::{db::QdrantDB, embeddings::Onnx, github::embed_repo};
+use crate::{db::QdrantDB, embeddings::Fastembed, github::embed_repo};
 use events::{emit, EmbedEvent};
 
 #[post("/embed")]
 async fn embeddings(
     data: Json<Repository>,
     db: web::Data<Arc<QdrantDB>>,
-    model: web::Data<Arc<Onnx>>,
+    model: web::Data<Arc<Fastembed>>,
 ) -> Result<impl Responder> {
     let license_info = fetch_license_info(&data).await.map_err(ErrorBadRequest)?;
     if !license_info.permissible {
@@ -70,7 +70,7 @@ async fn embeddings(
 async fn query(
     data: Json<Query>,
     db: web::Data<Arc<QdrantDB>>,
-    model: web::Data<Arc<Onnx>>,
+    model: web::Data<Arc<Fastembed>>,
 ) -> Result<impl Responder> {
     if db.is_indexed(&data.repository).await.unwrap_or_default() {
         let (sender, rx) = sse::channel(SSE_CHANNEL_BUFFER_SIZE);

@@ -21,7 +21,7 @@
 </div>
 
 ## 🔎 The Project
-RepoQuery is an early-beta project, that uses recursive [OpenAI function calling](https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions) paired with semantic search using [multi-qa-MiniLM-L6-cos-v1](https://huggingface.co/rawsh/multi-qa-MiniLM-distill-onnx-L6-cos-v1/blob/main/onnx/model_quantized.onnx) to index and answer user queries about public GitHub repositories.
+RepoQuery is an early-beta project, that uses recursive [OpenAI function calling](https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions) paired with semantic search using [sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) to index and answer user queries about public GitHub repositories.
 
 ## 📬 Service Endpoints
 
@@ -173,16 +173,16 @@ make up
 
 ## Attributions
 
-https://sbert.net for https://huggingface.co/sentence-transformers/multi-qa-MiniLM-L6-cos-v1.
+[sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2).
 ```
-@inproceedings{reimers-2020-multilingual-sentence-bert,
-  title = "Making Monolingual Sentence Embeddings Multilingual using Knowledge Distillation",
+@inproceedings{reimers-2019-sentence-bert,
+  title = "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks",
   author = "Reimers, Nils and Gurevych, Iryna",
-  booktitle = "Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing",
+  booktitle = "Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing",
   month = "11",
-  year = "2020",
+  year = "2019",
   publisher = "Association for Computational Linguistics",
-  url = "https://arxiv.org/abs/2004.09813",
+  url = "https://arxiv.org/abs/1908.10084",
 }
 ```
 
