@@ -975,9 +975,9 @@ dependencies = [
 
 [[package]]
 name = "fastembed"
-version = "1.7.0"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7775c4784e3a9d7ddf283e341a3695fd701a034f7875f1f6f30b0b640832c265"
+checksum = "44aabd5b5582bc2969c8f392386c89384a48be1276127c242007c9d861f60f1e"
 dependencies = [
  "anyhow",
  "flate2",
