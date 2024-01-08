@@ -28,5 +28,5 @@ actix-rt = "2"
 tracing-actix-web = "0.7"
 env_logger = "0.10"
 tokio = { version = "1", default-features = false }
-actix-cors = "0.6.4"
+actix-cors = "0.7.0"
 fastembed = "1.9.0"
