@@ -402,9 +402,9 @@ dependencies = [
 
 [[package]]
 name = "auto_enums"
-version = "0.8.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd4ba50b181a898ce52142184e3a46641002b3b190bf5ef827eb3c578fad4b70"
+checksum = "a764179c02b324e33cf71b4180e7dd13572400ff7e5c866da813f6c84e0e4cd3"
 dependencies = [
  "derive_utils",
  "proc-macro2",
@@ -1371,6 +1371,15 @@ name = "itertools"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25db6b064527c5d482d0423354fcd07a89a2dfe07b67892e62411946db7f07b0"
 dependencies = [
  "either",
 ]
@@ -2467,13 +2476,13 @@ dependencies = [
 
 [[package]]
 name = "text-splitter"
-version = "0.4.4"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6d9982d8e572d1187783d913e9b0e6ae49d3e56b67b7f2b4ef024a5707973a9"
+checksum = "7d2472fe4430d7a5dd846f6a3d480593b955c00ddf15440f1680645061b3c0a3"
 dependencies = [
  "auto_enums",
  "either",
- "itertools 0.11.0",
+ "itertools 0.12.0",
  "once_cell",
  "regex",
  "unicode-segmentation",
