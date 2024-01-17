@@ -51,7 +51,7 @@ impl RepositoryEmbeddingsDB for QdrantDB {
             })
             .collect();
         self.client
-            .upsert_points(repo.repo_id, points, None)
+            .upsert_points(repo.repo_id, None, points, None)
             .await?;
         Ok(())
     }
@@ -88,12 +88,9 @@ impl RepositoryEmbeddingsDB for QdrantDB {
             .client
             .scroll(&ScrollPoints {
                 collection_name: repository.to_string(),
-                offset: None,
-                filter: None,
                 limit: Some(MAX_FILES_COUNT as u32),
                 with_payload: Some(true.into()),
-                with_vectors: None,
-                read_consistency: None,
+                ..Default::default()
             })
             .await?;
 

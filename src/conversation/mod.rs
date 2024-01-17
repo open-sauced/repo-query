@@ -99,7 +99,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
             match self.send_request(request) {
                 Ok(response) => {
                     match response.choices[0].finish_reason {
-                        FinishReason::function_call => {
+                        Some(FinishReason::function_call) => {
                             if let Some(function_call) =
                                 response.choices[0].message.function_call.clone()
                             {
@@ -224,7 +224,7 @@ impl<D: RepositoryEmbeddingsDB, M: EmbeddingsModel> Conversation<D, M> {
                             };
                         }
 
-                        FinishReason::stop => {
+                        Some(FinishReason::stop) => {
                             //As of yet, there isn't a robust way to instruct the model to respond with function calls only except for switching to GPT-4
                             //We can only suggest it do so in the system message
                             // prompts.rs#L127
@@ -264,7 +264,7 @@ fn sanitize_query(query: &str) -> Result<String> {
     let client = Client::new(env::var("OPENAI_API_KEY")?);
     let request = generate_completion_request(vec![message], FunctionCallType::None);
     let response = client.chat_completion(request)?;
-    if let FinishReason::stop = response.choices[0].finish_reason {
+    if let Some(FinishReason::stop) = response.choices[0].finish_reason {
         let sanitized_query = response.choices[0]
             .message
             .content
