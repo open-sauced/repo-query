@@ -974,7 +974,7 @@ dependencies = [
  "rayon",
  "serde_json",
  "tar",
- "tokenizers",
+ "tokenizers 0.14.1",
 ]
 
 [[package]]
@@ -1676,7 +1676,7 @@ dependencies = [
  "serde",
  "serde_json",
  "text-splitter",
- "tokenizers",
+ "tokenizers 0.15.2",
  "tokio",
  "tracing-actix-web",
  "zip",
@@ -2509,11 +2509,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9be88c795d8b9f9c4002b3a8f26a6d0876103a6f523b32ea3bac52d8560c17c"
 dependencies = [
  "aho-corasick",
- "clap",
  "derive_builder",
  "esaxx-rs",
  "getrandom",
- "indicatif",
  "itertools 0.11.0",
  "lazy_static",
  "log",
@@ -2526,6 +2524,39 @@ dependencies = [
  "rayon-cond",
  "regex",
  "regex-syntax 0.7.5",
+ "serde",
+ "serde_json",
+ "spm_precompiled",
+ "thiserror",
+ "unicode-normalization-alignments",
+ "unicode-segmentation",
+ "unicode_categories",
+]
+
+[[package]]
+name = "tokenizers"
+version = "0.15.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3dd47962b0ba36e7fd33518fbf1754d136fd1474000162bbf2a8b5fcb2d3654d"
+dependencies = [
+ "aho-corasick",
+ "clap",
+ "derive_builder",
+ "esaxx-rs",
+ "getrandom",
+ "indicatif",
+ "itertools 0.12.0",
+ "lazy_static",
+ "log",
+ "macro_rules_attribute",
+ "monostate",
+ "onig",
+ "paste",
+ "rand",
+ "rayon",
+ "rayon-cond",
+ "regex",
+ "regex-syntax 0.8.2",
  "serde",
  "serde_json",
  "spm_precompiled",
