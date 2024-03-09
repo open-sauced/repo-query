@@ -1,15 +1,15 @@
 use crate::prelude::*;
-use fastembed::{EmbeddingBase, FlagEmbedding, InitOptions};
+use fastembed::{InitOptions, TextEmbedding};
 
 use super::{Embeddings, EmbeddingsModel};
 
 pub struct Fastembed {
-    model: FlagEmbedding,
+    model: TextEmbedding,
 }
 
 impl Fastembed {
     pub fn try_new() -> Result<Self> {
-        let model = FlagEmbedding::try_new(InitOptions {
+        let model = TextEmbedding::try_new(InitOptions {
             model_name: fastembed::EmbeddingModel::AllMiniLML6V2,
             ..Default::default()
         })?;
@@ -23,6 +23,7 @@ impl EmbeddingsModel for Fastembed {
     }
 
     fn query_embed<S: AsRef<str> + Send + Sync>(&self, query: S) -> Result<Embeddings> {
-        self.model.query_embed(query)
+        let query = format!("query: {}.", query.as_ref());
+        Ok(self.model.embed(vec![query], None)?[0].clone())
     }
 }
