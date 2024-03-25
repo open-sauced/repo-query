@@ -22,7 +22,7 @@ pub struct QdrantDB {
 #[async_trait]
 impl RepositoryEmbeddingsDB for QdrantDB {
     async fn insert_repo_embeddings(&self, repo: RepositoryEmbeddings) -> Result<()> {
-        if self.client.has_collection(&repo.repo_id).await? {
+        if self.client.collection_exists(&repo.repo_id).await? {
             self.client.delete_collection(&repo.repo_id).await?;
         }
         self.client
@@ -106,7 +106,7 @@ impl RepositoryEmbeddingsDB for QdrantDB {
     }
 
     async fn is_indexed(&self, repository: &Repository) -> Result<bool> {
-        self.client.has_collection(repository.to_string()).await
+        self.client.collection_exists(repository.to_string()).await
     }
 }
 
